@@ -17,7 +17,7 @@ stride = 512         # samples between windows
 stride_test = 128            # stride in test set
 k = 64            # number of window (time step) per piece
 k_test = 64
-data = np.load(open('musicnet_11khz.npz','rb'), encoding='latin1')
+data = np.load(open('musicnet_11khz.npz','rb'), encoding='latin1', allow_pickle=False)
 
 # split our dataset into train and test
 test_data = ['2303','2382','1819']
@@ -32,7 +32,7 @@ for i in range(len(train_data)):
         Ytrain = np.zeros([k,m])
         for j in range(k):
             s = j*stride+p*k*stride# start from one second to give us some wiggle room for larger segments
-            X_fft = fft(X[s:s+window_size])
+            X_fft = fft.fft(X[s:s+window_size])
             Xtrain[j, :, 0] = X_fft[0:d].real
             Xtrain[j, :, 1] = X_fft[0:d].imag
             # label stuff that's on in the center of the window
@@ -56,7 +56,7 @@ for i in range(len(test_data)):
         Ytest = np.zeros([k_test,m])
         for j in range(k_test):
             s = j*stride_test+p*k_test*stride_test# start from one second to give us some wiggle room for larger segments
-            X_fft = fft(X[s:s+window_size])
+            X_fft = fft.fft(X[s:s+window_size])
             Xtest[j, :, 0] = X_fft[0:d].real
             Xtest[j, :, 1] = X_fft[0:d].imag           
             # label stuff that's on in the center of the window

@@ -95,8 +95,8 @@ class TransformerModel(nn.Module):
         x should have dimension [seq_len, batch_size, n_features] (i.e., L, N, C).
         """
         time_step, batch_size, n_features = x.shape
-        input_a = x[:, :, :n_features//2].view(-1, 1, n_features//2)
-        input_b = x[:, :, n_features//2:].view(-1, 1, n_features//2)
+        input_a = x[:, :, :n_features//2].reshape(-1, 1, n_features//2)
+        input_b = x[:, :, n_features//2:].reshape(-1, 1, n_features//2)
         input_a, input_b = self.conv(input_a, input_b)
         input_a = input_a.reshape(time_step, batch_size, self.d_a)
         input_b = input_b.reshape(time_step, batch_size, self.d_b)
