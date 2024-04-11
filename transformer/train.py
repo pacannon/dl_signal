@@ -29,7 +29,8 @@ def train_transformer():
                              res_dropout=args.res_dropout,
                              out_dropout=args.out_dropout,
                              layers=args.nlevels,
-                             attn_mask=args.attn_mask)
+                             attn_mask=args.attn_mask,
+                             complex_mha=args.complex_mha)
     if use_cuda:
         model = model.cuda()
 
@@ -75,6 +76,7 @@ def train_model(settings):
             optimizer.step()
             total_batch_size += batch_size
             epoch_loss += loss.item() * batch_size
+            print("batch: ", i_batch, "loss: ", epoch_loss / (i_batch + 1))
         aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
         aps = 0
         print(sys.argv) 
@@ -129,6 +131,8 @@ parser.add_argument('--batch_size', type=int, default=16, metavar='N',
                     help='batch size (default: 16)')
 parser.add_argument('--clip', type=float, default=0.35,
                     help='gradient clip value (default: 0.35)')
+parser.add_argument('--complex_mha', type=bool, default=True,
+                    help='use reformulated complex multiheaded attention')
 parser.add_argument('--data', type=str, default='music')
 parser.add_argument('--embed_dim', type=int, default=320,
                     help='dimension of real and imag embeddimg before transformer (default: 320)')

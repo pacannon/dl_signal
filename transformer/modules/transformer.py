@@ -4,6 +4,7 @@ from torch.nn import Parameter
 import torch.nn.functional as F
 from modules.position_embedding import SinusoidalPositionalEmbedding
 from modules.multihead_attention import MultiheadAttention
+from modules.c_multihead_attention import CMultiheadAttention
 from models import *
 import math
 
@@ -20,9 +21,10 @@ class TransformerEncoder(nn.Module):
         relu_dropout (float): dropout applied on the first layer of the residual block
         res_dropout (float): dropout applied on the residual block
         attn_mask (bool): whether to apply mask on the attention weights
+        complex_mha (bool): whether to use the reformulated complex multiheaded attention.
     """
 
-    def __init__(self, embed_dim, num_heads, layers, attn_dropout, relu_dropout, res_dropout, attn_mask=False):
+    def __init__(self, embed_dim, num_heads, layers, attn_dropout, relu_dropout, res_dropout, attn_mask=False, complex_mha=True):
         super().__init__()
         self.dropout = 0.3      # Embedding dropout
         self.attn_dropout = attn_dropout
@@ -37,7 +39,8 @@ class TransformerEncoder(nn.Module):
                                     attn_dropout=attn_dropout,
                                     relu_dropout=relu_dropout,
                                     res_dropout=res_dropout,
-                                    attn_mask=attn_mask)
+                                    attn_mask=attn_mask,
+                                    complex_mha=complex_mha)
             for _ in range(layers)
         ])
         self.register_buffer('version', torch.Tensor([2]))
@@ -69,11 +72,19 @@ class TransformerEncoderLayer(nn.Module):
         embed_dim: Embedding dimension
     """
 
-    def __init__(self, embed_dim, num_heads=4, attn_dropout=0.1, relu_dropout=0.1, res_dropout=0.1, attn_mask=False):
+    def __init__(self, embed_dim, num_heads=4, attn_dropout=0.1, relu_dropout=0.1, res_dropout=0.1, attn_mask=False, complex_mha=True):
         super().__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
-        self.self_attn = MultiheadAttention(
+        self.complex_mha=complex_mha
+        self.self_attn = CMultiheadAttention(
+            embed_dim=self.embed_dim,
+            num_heads=self.num_heads,
+            attn_dropout=attn_dropout,
+            bias=True,
+            add_bias_kv=True, 
+            add_zero_attn=True
+        ) if self.complex_mha else MultiheadAttention(
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,
             attn_dropout=attn_dropout,
@@ -106,20 +117,27 @@ class TransformerEncoderLayer(nn.Module):
         residual_A = x_A
         residual_B = x_B
 
-        # Multihead Attention
-        x_aaa = self.attention_block(x_A, x_A, x_A)
-        x_aab = self.attention_block(x_A, x_A, x_B)
-        x_aba = self.attention_block(x_A, x_B, x_A)
-        x_baa = self.attention_block(x_B, x_A, x_A)
-        x_abb = self.attention_block(x_A, x_B, x_B)
-        x_bab = self.attention_block(x_B, x_A, x_B)
-        x_bba = self.attention_block(x_B, x_B, x_A)
-        x_bbb = self.attention_block(x_B, x_B, x_B)
+        if self.complex_mha:
+            x_stacked = torch.stack((x_A, x_B), dim=-1)
+            x = torch.view_as_complex(x_stacked)
+            result = self.complex_attention_block(x)
+
+            x_A = result.real
+            x_B = result.imag
+        else:
+            # Multihead Attention
+            x_aaa = self.attention_block(x_A, x_A, x_A)
+            x_aab = self.attention_block(x_A, x_A, x_B)
+            x_aba = self.attention_block(x_A, x_B, x_A)
+            x_baa = self.attention_block(x_B, x_A, x_A)
+            x_abb = self.attention_block(x_A, x_B, x_B)
+            x_bab = self.attention_block(x_B, x_A, x_B)
+            x_bba = self.attention_block(x_B, x_B, x_A)
+            x_bbb = self.attention_block(x_B, x_B, x_B)
 
 
-        x_A = x_aaa - x_abb - x_bab - x_bba
-        x_B = -x_bbb + x_baa + x_aba + x_aab
-        
+            x_A = x_aaa - x_abb - x_bab - x_bba
+            x_B = -x_bbb + x_baa + x_aba + x_aab
          
         x_A = self.layer_norms_A[0](x_A)
         x_B = self.layer_norms_B[0](x_B)
@@ -168,6 +186,12 @@ class TransformerEncoderLayer(nn.Module):
 
         mask = None
         x, _ = self.self_attn(query=x, key=x_k, value=x_v, attn_mask=mask)
+        return x
+
+    def complex_attention_block(self, x):
+
+        mask = None
+        x, _ = self.self_attn(x, attn_mask=mask)
         return x
 
 class TransformerDecoder(nn.Module):

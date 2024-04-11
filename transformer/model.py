@@ -15,7 +15,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class TransformerModel(nn.Module):
-    def __init__(self, time_step, input_dims, hidden_size, embed_dim, output_dim, num_heads, attn_dropout, relu_dropout, res_dropout, out_dropout, layers, attn_mask=False):
+    def __init__(self, time_step, input_dims, hidden_size, embed_dim, output_dim, num_heads, attn_dropout, relu_dropout, res_dropout, out_dropout, layers, attn_mask=False, complex_mha=True):
         """
         Construct a basic Transfomer model.
         
@@ -30,6 +30,7 @@ class TransformerModel(nn.Module):
         :param out_dropout: The dropout of output layer.
         :param layers: The number of transformer blocks.
         :param attn_mask: A boolean indicating whether to use attention mask (for transformer decoder).
+        :param complex_mha: A boolean indicating whether to use the reformulated complex multiheaded attention.
         """
         super(TransformerModel, self).__init__()
         self.conv = ComplexSequential(
@@ -75,7 +76,7 @@ class TransformerModel(nn.Module):
         self.embed_dim = embed_dim
         
         # Transformer networks
-        self.trans = self.get_network()
+        self.trans = self.get_network(complex_mha)
         print("Encoder Model size: {0}".format(count_parameters(self.trans)))
         # Projection layers
         self.proj = ComplexLinear(self.d_a, self.embed_dim)
@@ -85,10 +86,10 @@ class TransformerModel(nn.Module):
         self.out_fc2 = nn.Linear(h_out, output_dim)
         
         self.out_dropout = nn.Dropout(out_dropout)
-    def get_network(self):
+    def get_network(self, complex_mha):
         
         return TransformerEncoder(embed_dim=self.embed_dim, num_heads=self.num_heads, layers=self.layers, attn_dropout=self.attn_dropout,
-            relu_dropout=self.relu_dropout, res_dropout=self.res_dropout, attn_mask=self.attn_mask)
+            relu_dropout=self.relu_dropout, res_dropout=self.res_dropout, attn_mask=self.attn_mask, complex_mha=complex_mha)
             
     def forward(self, x):
         """
