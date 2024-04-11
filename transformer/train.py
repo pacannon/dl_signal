@@ -111,8 +111,30 @@ def train_model(settings):
                 epoch_loss += loss.item() * batch_size
             aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
         return epoch_loss / len(test_set), aps
+    
+    old_sys_stdout = sys.stdout
 
     for epoch in range(args.num_epochs):
+        if args.logging:
+            logging.root.handlers.clear()
+
+            current_time_utc = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            git_branch_name = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode()
+            git_short_commit_id = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip().decode()
+            log_path = 'logs/'
+            log_filename = f'training_log_{current_time_utc}_{git_short_commit_id}-{git_branch_name}_E{epoch:04}.log'
+
+            logging.basicConfig(level=logging.INFO, filename=log_path + log_filename, filemode='a')
+
+            stdout_logger = logging.getLogger('STDOUT')
+            stdout_logger.handlers.clear()
+
+            sl = StreamToLogger(stdout_logger, logging.INFO)
+            sys.stdout = sl
+
+            stdout_logger.info(args)
+            stdout_logger.info("Model size: {0}".format(count_parameters(model)))
+
         start = time.time() 
 
         train_loss, acc_train = train(model, optimizer, criterion)
@@ -125,6 +147,8 @@ def train_model(settings):
 
         end = time.time()
         print("time: %d" % (end - start))
+
+        sys.stdout = old_sys_stdout
 
 print(sys.argv)
 parser = argparse.ArgumentParser(description='Signal Data Analysis')
@@ -180,20 +204,6 @@ torch.cuda.manual_seed(args.seed)
 np.random.seed(args.seed)
 random.seed(args.seed)
 torch.backends.cudnn.deterministic = True
-
-if args.logging:
-    current_epoch = 0
-    current_time_utc = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    git_branch_name = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode()
-    git_short_commit_id = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip().decode()
-    log_path = f'logs/'
-    log_filename = f'training_log_{current_time_utc}_{git_short_commit_id}-{git_branch_name}_E{current_epoch:04}.log'
-
-    logging.basicConfig(level=logging.INFO, filename=log_path+log_filename, filemode='a')
-
-    stdout_logger = logging.getLogger('STDOUT')
-    sl = StreamToLogger(stdout_logger, logging.INFO)
-    sys.stdout = sl
 
 print(args)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
