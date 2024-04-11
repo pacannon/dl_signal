@@ -154,7 +154,7 @@ def train_model(settings):
 
             bucket_name = 'dl_signal'
             source_file_name = f'{log_path}{log_filename}'
-            destination_blob_name = f'{log_filename}'
+            destination_blob_name = f'{log_path}{log_filename}'
             
             upload_blob(bucket_name, source_file_name, destination_blob_name)
 
