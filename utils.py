@@ -94,7 +94,16 @@ class SignalDataset(Dataset):
         return data, label
 
 def count_parameters(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total_params = 0
+    for p in model.parameters():
+        if p.requires_grad:
+            if p.is_complex():
+                # Complex numbers have 2 components (real and imaginary)
+                total_params += 2 * p.numel()
+            else:
+                total_params += p.numel()
+    return total_params
+
 
 class SignalDataset_iq(Dataset):
     """Signal Dataset"""
