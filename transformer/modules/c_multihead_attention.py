@@ -24,12 +24,7 @@ class CMultiheadAttention(nn.Module):
             self.in_proj_bias = torch.nn.Parameter(torch.empty((3 * embed_dim), dtype=torch.complex64))
         else:
             self.register_parameter('in_proj_bias', None)
-
-        self.out_proj_weight = torch.nn.Parameter(torch.empty(embed_dim, embed_dim, dtype=torch.complex64))
-        if bias:
-            self.out_proj_bias = torch.nn.Parameter(torch.empty(embed_dim, dtype=torch.complex64))
-        else:
-            self.register_parameter('out_proj_bias', None)
+        self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias, dtype=torch.complex64)
 
         if add_bias_kv:
             self.bias_k = torch.nn.Parameter(torch.empty((1, 1, embed_dim), dtype=torch.complex64))
@@ -43,11 +38,10 @@ class CMultiheadAttention(nn.Module):
 
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.in_proj_weight)
-        nn.init.xavier_uniform_(self.out_proj_weight)
+        nn.init.xavier_uniform_(self.out_proj.weight)
         if self.in_proj_bias is not None:
             nn.init.constant_(self.in_proj_bias, 0.)
-        if self.out_proj_bias is not None:
-            nn.init.constant_(self.out_proj_bias, 0.)
+            nn.init.constant_(self.out_proj.bias, 0.)
         if self.bias_k is not None:
             nn.init.xavier_normal_(self.bias_k)
         if self.bias_v is not None:
