@@ -193,7 +193,7 @@ random.seed(args.seed)
 torch.backends.cudnn.deterministic = True
 print(args)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-use_cuda = True
+use_cuda = torch.cuda.is_available()
 """
 Data Loading
 """
