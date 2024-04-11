@@ -197,7 +197,7 @@ use_cuda = torch.cuda.is_available()
 """
 Data Loading
 """
-torch.set_default_tensor_type('torch.FloatTensor')
+torch.set_default_dtype(torch.float32)
 print("Start loading the data....")
 start_time = time.time() 
 if args.data == 'music':

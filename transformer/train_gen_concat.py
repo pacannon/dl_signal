@@ -179,7 +179,7 @@ use_cuda = True
 Data Loading
 """
 
-torch.set_default_tensor_type('torch.FloatTensor')
+torch.set_default_dtype(torch.float32)
 
 total_time_step = args.src_time_step + args.trg_time_step
 start = time.time()
