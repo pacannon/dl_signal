@@ -26,7 +26,7 @@ current_time_utc = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 git_branch_name = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode()
 git_short_commit_id = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip().decode()
 log_path = f'logs/'
-log_filename = f'training_log_{git_short_commit_id}-{git_branch_name}_E{current_epoch:04}_{current_time_utc}.log'
+log_filename = f'training_log_{current_time_utc}_{git_short_commit_id}-{git_branch_name}_E{current_epoch:04}.log'
 
 logging.basicConfig(level=logging.INFO, filename=log_path+log_filename, filemode='a')
 

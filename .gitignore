@@ -1,7 +1,7 @@
 ._*
 .DS_Store
 
-/logs
+# /logs
 /music/music_*
 /music/musicnet_*
 
