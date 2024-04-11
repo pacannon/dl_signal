@@ -4,7 +4,7 @@ import os,sys,inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
-from utils import SignalDataset_music, StreamToLogger
+from utils import SignalDataset_music, StreamToLogger, upload_blob
 import argparse
 from model import *
 import torch.optim as optim
@@ -148,7 +148,15 @@ def train_model(settings):
         end = time.time()
         print("time: %d" % (end - start))
 
-        sys.stdout = old_sys_stdout
+        if args.logging:
+            sl.close()
+            sys.stdout = old_sys_stdout
+
+            bucket_name = 'dl_signal'
+            source_file_name = f'{log_path}{log_filename}'
+            destination_blob_name = f'{log_filename}'
+            
+            upload_blob(bucket_name, source_file_name, destination_blob_name)
 
 print(sys.argv)
 parser = argparse.ArgumentParser(description='Signal Data Analysis')

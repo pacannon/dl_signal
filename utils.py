@@ -10,6 +10,7 @@ import glob
 import logging
 import sys
 import datetime
+from google.cloud import storage
 
 def get_meta(root_dir):
     """Will write a meta.txt to store sample size of both train and test.
@@ -197,3 +198,26 @@ class StreamToLogger:
             self.logger.log(self.log_level, log_message)
             self.linebuf = ''
         self.stdout.flush()
+
+    def close(self):
+        self.flush()
+
+        for handler in self.logger.handlers[:]:
+            handler.close()
+            self.logger.removeHandler(handler)
+
+
+def upload_blob(bucket_name, source_file_name, destination_blob_name):
+    try:
+        storage.Client()  # Will throw exception unless authenticated.
+
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blob = bucket.blob(destination_blob_name)
+
+        blob.upload_from_filename(source_file_name)
+
+        print(f"File {source_file_name} uploaded to {destination_blob_name}.")
+        return True
+    except:
+        return False
