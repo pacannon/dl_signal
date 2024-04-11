@@ -2,6 +2,8 @@
 .DS_Store
 
 /logs
+/music/music_*
+/music/musicnet_*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
