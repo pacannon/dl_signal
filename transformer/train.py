@@ -4,7 +4,7 @@ import os,sys,inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
-from utils import SignalDataset_music
+from utils import SignalDataset_music, StreamToLogger
 import argparse
 from model import *
 import torch.optim as optim
@@ -16,6 +16,22 @@ import os
 import time
 import random
 from sklearn.metrics import average_precision_score
+
+import logging
+import datetime
+import subprocess
+
+current_epoch = 0
+current_time_utc = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+branch_name = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode()
+short_commit_id = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip().decode()
+log_filename = f'training_log_{short_commit_id}-{branch_name}_E{current_epoch:04}_{current_time_utc}.log'
+
+logging.basicConfig(level=logging.INFO, filename=log_filename, filemode='a')
+
+stdout_logger = logging.getLogger('STDOUT')
+sl = StreamToLogger(stdout_logger, logging.INFO)
+sys.stdout = sl
 
 def train_transformer():
     model = TransformerModel(time_step=args.time_step,
@@ -76,8 +92,11 @@ def train_model(settings):
             optimizer.step()
             total_batch_size += batch_size
             epoch_loss += loss.item() * batch_size
-            print("batch: ", i_batch, "loss: ", epoch_loss / (i_batch + 1))
-        aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
+            current_loss = loss.item() * batch_size
+            avg_epoch_loss = epoch_loss / (i_batch + 1)
+            
+            print("[train_01]", "batch:", i_batch, "| epoch avg loss:", avg_epoch_loss, "| iteration loss:", current_loss)
+        # aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
         aps = 0
         print(sys.argv) 
         return epoch_loss / len(training_set), aps
@@ -104,8 +123,6 @@ def train_model(settings):
                 epoch_loss += loss.item() * batch_size
             aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
         return epoch_loss / len(test_set), aps
-
-
 
     for epoch in range(args.num_epochs):
         start = time.time() 

@@ -7,6 +7,9 @@ from torch.utils.data import Dataset, DataLoader
 import shutil 
 from scipy import fft
 import glob
+import logging
+import sys
+import datetime
 
 def get_meta(root_dir):
     """Will write a meta.txt to store sample size of both train and test.
@@ -155,3 +158,33 @@ class SignalDataset_music(Dataset):
     def __len__(self):
         return self.len
 
+
+
+
+class StreamToLogger:
+    """
+    Fake file-like stream object that redirects writes to a logger instance,
+    but also writes to stdout. It appends the current UTC datetime in RFC 3339 format to each logged line.
+    """
+    def __init__(self, logger, log_level=logging.INFO):
+        self.logger = logger
+        self.log_level = log_level
+        self.linebuf = ''
+        self.stdout = sys.stdout  # Keep original stdout
+
+    def write(self, buf):
+        self.stdout.write(buf)  # Write to stdout
+        self.linebuf += buf
+        if buf.endswith('\n'):
+            current_time_utc = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + 'Z'
+            log_message = f"::{current_time_utc}::{self.linebuf.rstrip()}"
+            self.logger.log(self.log_level, log_message)
+            self.linebuf = ''
+
+    def flush(self):
+        if self.linebuf:
+            current_time_utc = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + 'Z'
+            log_message = f"::{current_time_utc}::{self.linebuf.rstrip()}"
+            self.logger.log(self.log_level, log_message)
+            self.linebuf = ''
+        self.stdout.flush()
