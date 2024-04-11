@@ -21,19 +21,6 @@ import logging
 import datetime
 import subprocess
 
-current_epoch = 0
-current_time_utc = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-git_branch_name = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode()
-git_short_commit_id = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip().decode()
-log_path = f'logs/'
-log_filename = f'training_log_{current_time_utc}_{git_short_commit_id}-{git_branch_name}_E{current_epoch:04}.log'
-
-logging.basicConfig(level=logging.INFO, filename=log_path+log_filename, filemode='a')
-
-stdout_logger = logging.getLogger('STDOUT')
-sl = StreamToLogger(stdout_logger, logging.INFO)
-sys.stdout = sl
-
 def train_transformer():
     model = TransformerModel(time_step=args.time_step,
                              input_dims=args.modal_lengths,
@@ -158,6 +145,8 @@ parser.add_argument('--hidden_size', type=int, default=2048,
                     help='hidden_size in transformer (default: 2048)')
 parser.add_argument('--lr', type=float, default=1e-4,
                     help='initial learning rate (default: 1e-4)')
+parser.add_argument('--disable-logging', action='store_false', dest='logging',
+                    help='disables logging')
 parser.add_argument('--modal_lengths', nargs='+', type=int, default=[2048, 2048],
                     help='lengths of each modality (default: [2048, 2048])')
 parser.add_argument('--model', type=str, default='Transformer',
@@ -191,6 +180,21 @@ torch.cuda.manual_seed(args.seed)
 np.random.seed(args.seed)
 random.seed(args.seed)
 torch.backends.cudnn.deterministic = True
+
+if args.logging:
+    current_epoch = 0
+    current_time_utc = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    git_branch_name = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode()
+    git_short_commit_id = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip().decode()
+    log_path = f'logs/'
+    log_filename = f'training_log_{current_time_utc}_{git_short_commit_id}-{git_branch_name}_E{current_epoch:04}.log'
+
+    logging.basicConfig(level=logging.INFO, filename=log_path+log_filename, filemode='a')
+
+    stdout_logger = logging.getLogger('STDOUT')
+    sl = StreamToLogger(stdout_logger, logging.INFO)
+    sys.stdout = sl
+
 print(args)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 use_cuda = torch.cuda.is_available()
