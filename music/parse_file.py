@@ -15,7 +15,7 @@ d = 2048              # number of features
 m = 128               # (USED BY DCN) number of distinct notes
 stride = 512         # samples between windows
 stride_test = 128            # stride in test set
-k = 64            # number of window (time step) per piece
+k = 64            # number of input samples per window
 k_test = 64
 data = np.load(open('musicnet_11khz.npz','rb'), encoding='latin1', allow_pickle=False)
 
@@ -36,7 +36,7 @@ for i in range(len(train_data)):
             Xtrain[j, :, 0] = X_fft[0:d].real
             Xtrain[j, :, 1] = X_fft[0:d].imag
             # label stuff that's on in the center of the window
-            for label in Y[s+d/2]:
+            for label in Y[s+(window_size/2)]:
                 if (label.data[1]) >= m:
                     continue
                 else:
