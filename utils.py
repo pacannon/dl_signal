@@ -144,23 +144,17 @@ class SignalDataset_iq(Dataset):
 class SignalDataset_music(Dataset):
     """Signal Dataset"""
     
-    def __init__(self, root_dir, time_step, train):
+    def __init__(self, root_dir, time_step, mode):
+        assert mode == 'train' or mode == 'validation' or mode == 'test'
         self.root_dir = root_dir
         self.time_step = time_step
-        self.train = train
+        self.mode = mode
         self.len = 0
-        if self.train:
-            self.len = len(glob.glob1(root_dir, "*train_x*.npy"))
-        else:
-            self.len = len(glob.glob1(root_dir, "*test_x*.npy"))
+        self.len = len(glob.glob1(root_dir, f'*{self.mode}_x*.npy'))
     
     def __getitem__(self, idx):
-        if self.train:
-            x_path = os.path.join(self.root_dir, "music_train_x_{}_{}.npy".format(self.time_step, idx))
-            y_path = os.path.join(self.root_dir, "music_train_y_{}_{}.npy".format(self.time_step, idx))
-        else:
-            x_path = os.path.join(self.root_dir, "music_test_x_{}_{}.npy".format(self.time_step, idx))
-            y_path = os.path.join(self.root_dir, "music_test_y_{}_{}.npy".format(self.time_step, idx))
+        x_path = os.path.join(self.root_dir, f'music_{self.mode}_x_{self.time_step}_{idx}.npy')
+        y_path = os.path.join(self.root_dir, f'music_{self.mode}_y_{self.time_step}_{idx}.npy')
         data = np.load(x_path)
         label = np.load(y_path)
         return data, label

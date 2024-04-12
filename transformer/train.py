@@ -92,9 +92,9 @@ def train_model(settings):
     def evaluate(model, criterion):
         epoch_loss = 0.0
         batch_size = args.batch_size
-        loader = test_loader
+        loader = validation_loader
         total_batch_size = 0
-        shape = (args.time_step, test_set.len, args.output_dim) 
+        shape = (args.time_step, validation_set.len, args.output_dim) 
         true_vals = torch.zeros(shape)
         pred_vals = torch.zeros(shape)
         model.eval()
@@ -110,7 +110,7 @@ def train_model(settings):
                 total_batch_size += batch_size
                 epoch_loss += loss.item() * batch_size
             aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
-        return epoch_loss / len(test_set), aps
+        return epoch_loss / len(validation_set), aps
     
     old_sys_stdout = sys.stdout
 
@@ -139,10 +139,10 @@ def train_model(settings):
 
         train_loss, acc_train = train(model, optimizer, criterion)
         print('Epoch {:2d} | Train Loss {:5.4f} | APS {:5.4f}'.format(epoch, train_loss, acc_train))
-        test_loss, acc_test = evaluate(model, criterion)
-        scheduler.step(test_loss)
+        validation_loss, acc_validation = evaluate(model, criterion)
+        scheduler.step(validation_loss)
         print("-"*50)
-        print('Epoch {:2d} | Test  Loss {:5.4f} | APS {:5.4f}'.format(epoch, test_loss, acc_test))
+        print('Epoch {:2d} | Validation Loss {:5.4f} | APS {:5.4f}'.format(epoch, validation_loss, acc_validation))
         print("-"*50)
 
         end = time.time()
@@ -223,14 +223,14 @@ torch.set_default_dtype(torch.float32)
 print("Start loading the data....")
 start_time = time.time() 
 if args.data == 'music':
-    training_set = SignalDataset_music(args.path, args.time_step, train=True)
-    test_set = SignalDataset_music(args.path, args.time_step, train=False)
+    training_set = SignalDataset_music(args.path, args.time_step, mode='train')
+    validation_set = SignalDataset_music(args.path, args.time_step, mode='validation')
 elif args.data == 'iq':
     training_set = SignalDataset_iq(args.path, args.time_step, train=True)
-    test_set = SignalDataset_iq(args.path, args.time_step, train=False)
+    validation_set = SignalDataset_iq(args.path, args.time_step, train=False)
     print("This file is for music dataset only; use train_iq.py for training iq net.")
     assert False
 print("Finish loading the data....")
 train_loader = torch.utils.data.DataLoader(training_set, batch_size=args.batch_size, shuffle=True)
-test_loader = torch.utils.data.DataLoader(test_set, batch_size=args.batch_size, shuffle=True)
+validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=args.batch_size, shuffle=True)
 train_transformer()
