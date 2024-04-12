@@ -22,6 +22,15 @@ data = np.load(open('musicnet_11khz.npz','rb'), encoding='latin1', allow_pickle=
 # split our dataset into train and test
 test_data = ['2303','2382','1819']
 train_data = [f for f in data.files if f not in test_data]
+
+
+
+test_data = ['2303', '2382', '1819']
+# Adding same validation data used by RSE
+# https://github.com/LUMII-Syslab/RSE/blob/master/musicnet_data/parse_file.py#L31
+validation_data = ['2131', '2384', '1792', '2514', '2567', '1876']
+train_data = [ID for ID in data.files if ID not in (test_data + validation_data)]
+
 index = 0
 # create the train set
 for i in range(len(train_data)):
@@ -45,6 +54,33 @@ for i in range(len(train_data)):
         np.save("music_train_x_64_{}.npy".format(index), Xtrain)
         np.save("music_train_y_64_{}.npy".format(index), Ytrain)
         index = index + 1
+
+# create the validation set
+index = 0
+for i in range(len(validation_data)):
+    print(i)
+    X,Y = data[validation_data[i]]
+    for p in range(int((len(X)-window_size)/stride_test/k_test)):
+        Xval = np.empty([k_test,d,2])
+        Yval = np.zeros([k_test,m])
+        for j in range(k_test):
+            s = j*stride_test+p*k_test*stride_test# start from one second to give us some wiggle room for larger segments
+            X_fft = fft.fft(X[s:s+window_size])
+            Xval[j, :, 0] = X_fft[0:d].real
+            Xval[j, :, 1] = X_fft[0:d].imag           
+            # label stuff that's on in the center of the window
+            for label in Y[s+d/2]:
+                if (label.data[1]) >= m:
+                    continue
+                else:
+                    Yval[j,label.data[1]] = 1
+        Xval = Xval.reshape(k_test, d*2, order='F')
+        np.save("music_validation_x_64_{}.npy".format(index), Xval)
+        np.save("music_validation_y_64_{}.npy".format(index), Yval)
+        index = index + 1
+
+
+
 
 # create the test set
 index = 0
