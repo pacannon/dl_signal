@@ -168,7 +168,7 @@ parser.add_argument('--batch_size', type=int, default=16, metavar='N',
                     help='batch size (default: 16)')
 parser.add_argument('--clip', type=float, default=0.35,
                     help='gradient clip value (default: 0.35)')
-parser.add_argument('--complex_mha', type=bool, default=True,
+parser.add_argument('--complex_mha', action='store_true', dest='complex_mha',
                     help='use reformulated complex multiheaded attention')
 parser.add_argument('--data', type=str, default='music')
 parser.add_argument('--embed_dim', type=int, default=320,
