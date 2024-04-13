@@ -80,6 +80,7 @@ class Trainer:
         self.best_eval_validation_aps_epoch = -1
 
         self.training_step = 0
+        self.epoch = 0
 
     def train_model(self):
         settings = self.settings
@@ -135,22 +136,22 @@ class Trainer:
 
                 eval_train_loss = epoch_loss / len(training_set)
 
-                mlflow.log_metric("eval_train_loss", eval_train_loss, step=self.training_step)
-                mlflow.log_metric("eval_train_aps", eval_train_aps, step=self.training_step)
+                mlflow.log_metric("eval_train_loss", eval_train_loss, step=self.epoch)
+                mlflow.log_metric("eval_train_aps", eval_train_aps, step=self.epoch)
 
                 if eval_train_loss < self.best_eval_train_loss:
                     self.best_eval_train_loss = eval_train_loss
                     self.best_eval_train_loss_epoch = epoch
 
-                    mlflow.log_metric("best_eval_train_loss", self.best_eval_train_loss, step=self.training_step)
-                    mlflow.log_metric("best_eval_train_loss_epoch", self.best_eval_train_loss_epoch, step=self.training_step)
+                mlflow.log_metric("best_eval_train_loss", self.best_eval_train_loss, step=self.epoch)
+                mlflow.log_metric("best_eval_train_loss_epoch", self.best_eval_train_loss_epoch, step=self.epoch)
 
                 if eval_train_aps > self.best_eval_train_aps:
                     self.best_eval_train_aps = eval_train_aps
                     self.best_eval_train_aps_epoch = epoch
 
-                    mlflow.log_metric("best_eval_training_loss", self.best_eval_train_aps, step=self.training_step)
-                    mlflow.log_metric("best_eval_training_loss_epoch", self.best_eval_train_aps_epoch, step=self.training_step)
+                mlflow.log_metric("best_eval_train_aps", self.best_eval_train_aps, step=self.epoch)
+                mlflow.log_metric("best_eval_train_aps_epoch", self.best_eval_train_aps_epoch, step=self.epoch)
 
                 return eval_train_loss, eval_train_aps
 
@@ -184,28 +185,30 @@ class Trainer:
 
                 eval_validation_loss = epoch_loss / len(validation_set)
 
-                mlflow.log_metric("eval_validation_loss", eval_validation_loss, step=self.training_step)
-                mlflow.log_metric("eval_validation_aps", eval_validation_aps, step=self.training_step)
+                mlflow.log_metric("eval_validation_loss", eval_validation_loss, step=self.epoch)
+                mlflow.log_metric("eval_validation_aps", eval_validation_aps, step=self.epoch)
 
                 if eval_validation_loss < self.best_eval_validation_loss:
                     self.best_eval_validation_loss = eval_validation_loss
                     self.best_eval_validation_loss_epoch = epoch
 
-                    mlflow.log_metric("best_eval_validation_loss", self.best_eval_validation_loss, step=self.training_step)
-                    mlflow.log_metric("best_eval_validation_loss_epoch", self.best_eval_validation_loss_epoch, step=self.training_step)
+                mlflow.log_metric("best_eval_validation_loss", self.best_eval_validation_loss, step=self.epoch)
+                mlflow.log_metric("best_eval_validation_loss_epoch", self.best_eval_validation_loss_epoch, step=self.epoch)
 
                 if eval_validation_aps > self.best_eval_validation_aps:
                     self.best_eval_validation_aps = eval_validation_aps
                     self.best_eval_validation_aps_epoch = epoch
 
-                    mlflow.log_metric("best_eval_validation_aps", self.best_eval_validation_aps, step=self.training_step)
-                    mlflow.log_metric("best_eval_validation_aps_epoch", self.best_eval_validation_aps_epoch, step=self.training_step)
+                mlflow.log_metric("best_eval_validation_aps", self.best_eval_validation_aps, step=self.epoch)
+                mlflow.log_metric("best_eval_validation_aps_epoch", self.best_eval_validation_aps_epoch, step=self.epoch)
 
                 return eval_validation_loss, eval_validation_aps
             
             old_sys_stdout = sys.stdout
 
             for epoch in range(args.num_epochs):
+                self.epoch = epoch
+
                 if args.logging:
                     logging.root.handlers.clear()
 
@@ -225,7 +228,7 @@ class Trainer:
                     stdout_logger.info(args)
                     stdout_logger.info("Model size: {0}".format(count_parameters(model)))
 
-                mlflow.log_metric('learning_rate', optimizer.param_groups[0]["lr"], step=self.training_step)
+                mlflow.log_metric('learning_rate', optimizer.param_groups[0]["lr"], step=self.epoch)
 
                 start = time.time() 
 
