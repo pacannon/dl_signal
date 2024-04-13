@@ -16,9 +16,9 @@ This code base relies on GPUs and cuda.
 ## File parsing
 `cd music/`<br />
 `wget  https://homes.cs.washington.edu/~thickstn/media/musicnet.npz`<br />
-`python3 -u resample.py musicnet.npz musicnet_11khz.npz 44100 11000`<br />
+`python -u resample.py musicnet.npz musicnet_11khz.npz 44100 11000`<br />
 `rm musicnet.npz`<br />
-`python3 -u parse_file.py`<br />
+`python -u parse_file.py`<br />
 `rm musicnet_11khz.npz`<br />
 `cd ..`<br />
 (This process is quite long)
