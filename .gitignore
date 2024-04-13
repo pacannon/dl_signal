@@ -1,6 +1,7 @@
 ._*
 .DS_Store
 
+/checkpoints
 /logs
 /music/music_*
 /music/musicnet_*
