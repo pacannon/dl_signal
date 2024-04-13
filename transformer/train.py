@@ -17,9 +17,25 @@ import time
 import random
 from sklearn.metrics import average_precision_score
 
+from dotenv import load_dotenv
+
+import mlflow
+
 import logging
 import datetime
 import subprocess
+
+load_dotenv()
+
+# Accessing variables
+mlflow_server_uri = os.getenv('MLFLOW_SERVER_URI')
+bucket_name = os.getenv('BUCKET_NAME')
+
+log_path = 'logs'
+checkpoints_path = 'checkpoints'
+
+mlflow.set_tracking_uri(uri=mlflow_server_uri)
+mlflow.set_experiment("dl_signal")
 
 def train_transformer():
     model = TransformerModel(time_step=args.time_step,
@@ -42,121 +58,229 @@ def train_transformer():
 
     optimizer = getattr(optim, args.optim)(model.parameters(), lr=args.lr, weight_decay=1e-7)
     criterion = nn.BCEWithLogitsLoss()
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=2, factor=0.5, verbose=True)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=2, factor=0.5)
     settings = {'model': model,
                 'optimizer': optimizer,
                 'criterion': criterion,
                 'scheduler': scheduler}
-    return train_model(settings)
+    trainer = Trainer(settings)
+    return trainer.train_model()
 
+class Trainer:
+    def __init__(self, settings):
+        self.settings = settings
 
-def train_model(settings):
-    model = settings['model']
-    optimizer = settings['optimizer']
-    criterion = settings['criterion']
-    scheduler = settings['scheduler']
-    model.to(device)
-    def train(model, optimizer, criterion):
-        epoch_loss = 0.0
-        batch_size = args.batch_size
-        num_batches = len(training_set) // batch_size
-        total_batch_size = 0
-        start_time = time.time()
-        shape = (args.time_step, training_set.len, args.output_dim)
-        true_vals = torch.zeros(shape)
-        pred_vals = torch.zeros(shape)
-        model.train()
-        for i_batch, (batch_X, batch_y) in enumerate(train_loader):
-            model.zero_grad()
-            batch_X = batch_X.transpose(0, 1)
-            batch_y = batch_y.transpose(0, 1)
-            batch_X, batch_y = batch_X.float().to(device=device), batch_y.float().to(device=device)
-            preds = model(batch_X)
-            true_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = batch_y.detach().cpu()
-            pred_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = preds.detach().cpu()
-            loss = criterion(preds, batch_y)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
-            optimizer.step()
-            total_batch_size += batch_size
-            epoch_loss += loss.item() * batch_size
-            current_loss = loss.item() * batch_size
-            avg_epoch_loss = epoch_loss / (i_batch + 1)
+        self.best_eval_train_loss = float('inf')
+        self.best_eval_train_loss_epoch = -1
+        self.best_eval_train_aps = float('-inf')
+        self.best_eval_train_aps_epoch = -1
+        self.best_eval_validation_loss = float('inf')
+        self.best_eval_validation_loss_epoch = -1
+        self.best_eval_validation_aps = float('-inf')
+        self.best_eval_validation_aps_epoch = -1
+
+        self.training_step = 0
+
+    def train_model(self):
+        settings = self.settings
+
+        with mlflow.start_run():
+            model = settings['model']
+            optimizer = settings['optimizer']
+            criterion = settings['criterion']
+            scheduler = settings['scheduler']
+            model.to(device)
+
+            mlflow.log_params(vars(args))
+
+            mlflow.log_metric('parameters_total', count_parameters(model))
+            mlflow.log_metric('parameters_attention_blocks', count_parameters(model.trans))
+
+            def train(model, optimizer, criterion):
+                epoch_loss = 0.0
+                batch_size = args.batch_size
+                num_batches = len(training_set) // batch_size
+                total_batch_size = 0
+                start_time = time.time()
+                shape = (args.time_step, training_set.len, args.output_dim)
+                true_vals = torch.zeros(shape)
+                pred_vals = torch.zeros(shape)
+                model.train()
+
+                for i_batch, (batch_X, batch_y) in enumerate(train_loader):
+                    model.zero_grad()
+                    batch_X = batch_X.transpose(0, 1)
+                    batch_y = batch_y.transpose(0, 1)
+                    batch_X, batch_y = batch_X.float().to(device=device), batch_y.float().to(device=device)
+                    preds = model(batch_X)
+                    true_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = batch_y.detach().cpu()
+                    pred_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = preds.detach().cpu()
+                    loss = criterion(preds, batch_y)
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
+                    optimizer.step()
+                    total_batch_size += batch_size
+                    epoch_loss += loss.item() * batch_size
+                    current_loss = loss.item() * batch_size
+                    avg_epoch_loss = epoch_loss / (i_batch + 1)
+                    self.training_step = self.training_step + 1
+                    
+                    print("[train_01]", "batch:", i_batch, "| epoch avg loss:", avg_epoch_loss, "| iteration loss:", current_loss)
+                    mlflow.log_metric("train_loss", current_loss, step=self.training_step)
+
+                    if i_batch > 0:
+                        break
+                    
+                eval_train_aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
+
+                eval_train_loss = epoch_loss / len(training_set)
+
+                mlflow.log_metric("eval_train_loss", eval_train_loss, step=self.training_step)
+                mlflow.log_metric("eval_train_aps", eval_train_aps, step=self.training_step)
+
+                if eval_train_loss < self.best_eval_train_loss:
+                    self.best_eval_train_loss = eval_train_loss
+                    self.best_eval_train_loss_epoch = epoch
+
+                    mlflow.log_metric("best_eval_train_loss", self.best_eval_train_loss, step=self.training_step)
+                    mlflow.log_metric("best_eval_train_loss_epoch", self.best_eval_train_loss_epoch, step=self.training_step)
+
+                if eval_train_aps > self.best_eval_train_aps:
+                    self.best_eval_train_aps = eval_train_aps
+                    self.best_eval_train_aps_epoch = epoch
+
+                    mlflow.log_metric("best_eval_training_loss", self.best_eval_train_aps, step=self.training_step)
+                    mlflow.log_metric("best_eval_training_loss_epoch", self.best_eval_train_aps_epoch, step=self.training_step)
+
+                return eval_train_loss, eval_train_aps
+
+            def evaluate(model, criterion):
+                epoch_loss = 0.0
+                batch_size = args.batch_size
+                loader = validation_loader
+                total_batch_size = 0
+                shape = (args.time_step, validation_set.len, args.output_dim) 
+                true_vals = torch.zeros(shape)
+                pred_vals = torch.zeros(shape)
+                model.eval()
+                with torch.no_grad():
+                    for i_batch, (batch_X, batch_y) in enumerate(loader):
+                        batch_X = batch_X.transpose(0, 1)
+                        batch_y = batch_y.transpose(0, 1)
+                        batch_X, batch_y = batch_X.float().to(device=device), batch_y.float().to(device=device)
+                        preds = model(batch_X)
+                        true_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = batch_y.detach().cpu()
+                        pred_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = preds.detach().cpu()
+                        loss = criterion(preds, batch_y)
+                        total_batch_size += batch_size
+                        epoch_loss += loss.item() * batch_size
+                        current_loss = loss.item() * batch_size
+                        avg_epoch_loss = epoch_loss / (i_batch + 1)
+                        print("[validation_01]", "batch:", i_batch, "| epoch avg loss:", avg_epoch_loss, "| iteration loss:", current_loss)
+
+                        if i_batch > 0:
+                            break
+                    eval_validation_aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
+
+                eval_validation_loss = epoch_loss / len(validation_set)
+
+                mlflow.log_metric("eval_validation_loss", eval_validation_loss, step=self.training_step)
+                mlflow.log_metric("eval_validation_aps", eval_validation_aps, step=self.training_step)
+
+                if eval_validation_loss < self.best_eval_validation_loss:
+                    self.best_eval_validation_loss = eval_validation_loss
+                    self.best_eval_validation_loss_epoch = epoch
+
+                    mlflow.log_metric("best_eval_validation_loss", self.best_eval_validation_loss, step=self.training_step)
+                    mlflow.log_metric("best_eval_validation_loss_epoch", self.best_eval_validation_loss_epoch, step=self.training_step)
+
+                if eval_validation_aps > self.best_eval_validation_aps:
+                    self.best_eval_validation_aps = eval_validation_aps
+                    self.best_eval_validation_aps_epoch = epoch
+
+                    mlflow.log_metric("best_eval_validation_aps", self.best_eval_validation_aps, step=self.training_step)
+                    mlflow.log_metric("best_eval_validation_aps_epoch", self.best_eval_validation_aps_epoch, step=self.training_step)
+
+                return eval_validation_loss, eval_validation_aps
             
-            print("[train_01]", "batch:", i_batch, "| epoch avg loss:", avg_epoch_loss, "| iteration loss:", current_loss)
-        # aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
-        aps = 0
-        print(sys.argv) 
-        return epoch_loss / len(training_set), aps
+            old_sys_stdout = sys.stdout
 
-    def evaluate(model, criterion):
-        epoch_loss = 0.0
-        batch_size = args.batch_size
-        loader = validation_loader
-        total_batch_size = 0
-        shape = (args.time_step, validation_set.len, args.output_dim) 
-        true_vals = torch.zeros(shape)
-        pred_vals = torch.zeros(shape)
-        model.eval()
-        with torch.no_grad():
-            for i_batch, (batch_X, batch_y) in enumerate(loader):
-                batch_X = batch_X.transpose(0, 1)
-                batch_y = batch_y.transpose(0, 1)
-                batch_X, batch_y = batch_X.float().to(device=device), batch_y.float().to(device=device)
-                preds = model(batch_X)
-                true_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = batch_y.detach().cpu()
-                pred_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = preds.detach().cpu()
-                loss = criterion(preds, batch_y)
-                total_batch_size += batch_size
-                epoch_loss += loss.item() * batch_size
-            aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
-        return epoch_loss / len(validation_set), aps
-    
-    old_sys_stdout = sys.stdout
+            for epoch in range(args.num_epochs):
+                if args.logging:
+                    logging.root.handlers.clear()
 
-    for epoch in range(args.num_epochs):
-        if args.logging:
-            logging.root.handlers.clear()
+                    current_time_utc = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+                    git_branch_name = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode()
+                    git_short_commit_id = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip().decode()
+                    log_filename = f'training_log_{current_time_utc}_{git_short_commit_id}-{git_branch_name}_E{epoch:04}.log'
 
-            current_time_utc = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-            git_branch_name = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).strip().decode()
-            git_short_commit_id = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).strip().decode()
-            log_path = 'logs/'
-            log_filename = f'training_log_{current_time_utc}_{git_short_commit_id}-{git_branch_name}_E{epoch:04}.log'
+                    logging.basicConfig(level=logging.INFO, filename=f'{log_path}/{log_filename}', filemode='a')
 
-            logging.basicConfig(level=logging.INFO, filename=log_path + log_filename, filemode='a')
+                    stdout_logger = logging.getLogger('STDOUT')
+                    stdout_logger.handlers.clear()
 
-            stdout_logger = logging.getLogger('STDOUT')
-            stdout_logger.handlers.clear()
+                    sl = StreamToLogger(stdout_logger, logging.INFO)
+                    sys.stdout = sl
 
-            sl = StreamToLogger(stdout_logger, logging.INFO)
-            sys.stdout = sl
+                    stdout_logger.info(args)
+                    stdout_logger.info("Model size: {0}".format(count_parameters(model)))
 
-            stdout_logger.info(args)
-            stdout_logger.info("Model size: {0}".format(count_parameters(model)))
+                mlflow.log_metric('learning_rate', optimizer.param_groups[0]["lr"], step=self.training_step)
 
-        start = time.time() 
+                start = time.time() 
 
-        train_loss, acc_train = train(model, optimizer, criterion)
-        print('Epoch {:2d} | Train Loss {:5.4f} | APS {:5.4f}'.format(epoch, train_loss, acc_train))
-        validation_loss, acc_validation = evaluate(model, criterion)
-        scheduler.step(validation_loss)
-        print("-"*50)
-        print('Epoch {:2d} | Validation Loss {:5.4f} | APS {:5.4f}'.format(epoch, validation_loss, acc_validation))
-        print("-"*50)
+                train_loss, acc_train = train(model, optimizer, criterion)
+                print('Epoch {:2d} | Train Loss {:5.4f} | APS {:5.4f}'.format(epoch, train_loss, acc_train))
+                validation_loss, acc_validation = evaluate(model, criterion)
+                scheduler.step(validation_loss)
+                print("-"*50)
+                print('Epoch {:2d} | Validation Loss {:5.4f} | APS {:5.4f}'.format(epoch, validation_loss, acc_validation))
+                print("-"*50)
 
-        end = time.time()
-        print("time: %d" % (end - start))
+                end = time.time()
+                print("time: %d" % (end - start))
 
-        if args.logging:
-            sl.close()
-            sys.stdout = old_sys_stdout
+                if args.logging:
+                    sl.close()
+                    sys.stdout = old_sys_stdout
 
-            bucket_name = 'dl_signal'
-            source_file_name = f'{log_path}{log_filename}'
-            destination_blob_name = f'{log_path}{log_filename}'
-            
-            upload_blob(bucket_name, source_file_name, destination_blob_name)
+                    source_file_name = f'{log_path}/{log_filename}'
+                    destination_blob_name = f'{log_path}/{log_filename}'
+                    
+                    upload_blob(bucket_name, source_file_name, destination_blob_name)
+
+                
+                # Save model state dictionary
+                model_state = model.state_dict()
+
+                # Save optimizer state dictionary
+                optimizer_state = optimizer.state_dict()
+
+                # Save scheduler state dictionary (if any)
+                scheduler_state = scheduler.state_dict() if scheduler else None
+
+                # Save everything to a dictionary
+                checkpoint = {
+                    'model': model_state,
+                    'optimizer': optimizer_state,
+                    'scheduler': scheduler_state
+                }
+
+                run = mlflow.active_run()
+
+                filename = f'{run.info.run_id}_E{epoch:04}.pth'
+                save_path = f'{checkpoints_path}/{filename}'
+
+                blob_uri = f'https://storage.cloud.google.com/{bucket_name}/{save_path}'
+
+                mlflow.log_text(blob_uri, save_path)
+
+                torch.save(checkpoint, save_path)
+
+                source_file_name = save_path
+                destination_blob_name = save_path
+                
+                upload_blob(bucket_name, source_file_name, destination_blob_name)
 
 print(sys.argv)
 parser = argparse.ArgumentParser(description='Signal Data Analysis')

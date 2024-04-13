@@ -1,0 +1,1 @@
+This directory will contain checkpoints for each epoch of each run
