@@ -82,6 +82,9 @@ class Trainer:
         self.training_step = 0
         self.epoch = 0
 
+        self.upload_interval = datetime.timedelta(seconds=10)
+        self.last_upload_time = datetime.datetime.min
+
     def train_model(self):
         settings = self.settings
 
@@ -127,7 +130,11 @@ class Trainer:
                     self.training_step = self.training_step + 1
                     
                     print("[train_01]", "batch:", i_batch, "| epoch avg loss:", avg_epoch_loss, "| iteration loss:", current_loss)
-                    mlflow.log_metric("train_loss", current_loss, step=self.training_step)
+
+                    current_time = datetime.datetime.utcnow()
+                    if current_time - self.last_upload_time >= self.upload_interval:
+                        mlflow.log_metric("train_loss", current_loss, step=self.training_step)
+                        self.last_upload_time = current_time
 
                     if i_batch > 0:
                         break
