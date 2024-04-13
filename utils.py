@@ -155,8 +155,8 @@ class SignalDataset_music(Dataset):
     def __getitem__(self, idx):
         x_path = os.path.join(self.root_dir, f'music_{self.mode}_x_{self.time_step}_{idx}.npy')
         y_path = os.path.join(self.root_dir, f'music_{self.mode}_y_{self.time_step}_{idx}.npy')
-        data = np.load(x_path).astype(np.float32)
-        label = np.load(y_path).astype(np.float32)
+        data = np.load(x_path)
+        label = np.load(y_path)
         return data, label
     
     def __len__(self):

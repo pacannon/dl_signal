@@ -51,8 +51,8 @@ for i in range(len(train_data)):
                 else:
                     Ytrain[j,label.data[1]] = 1
         Xtrain = Xtrain.reshape(k, d*2, order='F')
-        np.save("music_train_x_64_{}.npy".format(index), Xtrain)
-        np.save("music_train_y_64_{}.npy".format(index), Ytrain)
+        np.save("music_train_x_64_{}.npy".format(index), Xtrain.astype(np.float32))
+        np.save("music_train_y_64_{}.npy".format(index), Ytrain.astype(np.float32))
         index = index + 1
 
 # create the validation set
@@ -75,8 +75,8 @@ for i in range(len(validation_data)):
                 else:
                     Yval[j,label.data[1]] = 1
         Xval = Xval.reshape(k_test, d*2, order='F')
-        np.save("music_validation_x_64_{}.npy".format(index), Xval).astype(np.float32)
-        np.save("music_validation_y_64_{}.npy".format(index), Yval).astype(np.float32)
+        np.save("music_validation_x_64_{}.npy".format(index), Xval.astype(np.float32))
+        np.save("music_validation_y_64_{}.npy".format(index), Yval.astype(np.float32))
         index = index + 1
 
 
@@ -102,7 +102,7 @@ for i in range(len(test_data)):
                 else:
                     Ytest[j,label.data[1]] = 1
         Xtest = Xtest.reshape(k_test, d*2, order='F')
-        np.save("music_test_x_64_{}.npy".format(index), Xtest)
-        np.save("music_test_y_64_{}.npy".format(index), Ytest)
+        np.save("music_test_x_64_{}.npy".format(index), Xtest.astype(np.float32))
+        np.save("music_test_y_64_{}.npy".format(index), Ytest.astype(np.float32))
         index = index + 1
 print("finished")
