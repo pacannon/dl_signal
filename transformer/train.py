@@ -309,8 +309,8 @@ parser.add_argument('--model', type=str, default='Transformer',
                     help='name of the model to use (Transformer, etc.)')
 parser.add_argument('--nlevels', type=int, default=6,
                     help='number of layers in the network (if applicable) (default: 6)')
-parser.add_argument('--num_epochs', type=int, default=2000,
-                    help='number of epochs (default: 2000)')
+parser.add_argument('--num_epochs', type=int, default=30,
+                    help='number of epochs (default: 30)')
 parser.add_argument('--num_heads', type=int, default=8,
                     help='number of heads for the transformer network')
 parser.add_argument('--optim', type=str, default='Adam',
