@@ -215,3 +215,11 @@ def upload_blob(bucket_name, source_file_name, destination_blob_name):
         return True
     except:
         return False
+    
+def get_env_variable(name, raise_if_missing=True, raise_if_empty=True):
+    value = os.getenv(name)
+    if value is None and raise_if_missing:
+        raise EnvironmentError(f"Required environment variable '{name}' is not set.")
+    if value is '' and raise_if_empty:
+        raise EnvironmentError(f"Required environment variable '{name}' is set empty.")
+    return value

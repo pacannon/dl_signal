@@ -4,7 +4,7 @@ import os,sys,inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0,parentdir) 
-from utils import SignalDataset_music, StreamToLogger, upload_blob
+from utils import SignalDataset_music, StreamToLogger, get_env_variable, upload_blob
 import argparse
 from model import *
 import torch.optim as optim
@@ -25,11 +25,12 @@ import logging
 import datetime
 import subprocess
 
-load_dotenv()
+if not load_dotenv():
+    raise EnvironmentError("Missing .env file with valid key/values.")
 
 # Accessing variables
-mlflow_server_uri = os.getenv('MLFLOW_SERVER_URI')
-bucket_name = os.getenv('BUCKET_NAME')
+mlflow_server_uri = get_env_variable('MLFLOW_SERVER_URI')
+bucket_name = get_env_variable('BUCKET_NAME')
 
 log_path = 'logs'
 checkpoints_path = 'checkpoints'
