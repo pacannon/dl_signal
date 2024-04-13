@@ -75,8 +75,8 @@ for i in range(len(validation_data)):
                 else:
                     Yval[j,label.data[1]] = 1
         Xval = Xval.reshape(k_test, d*2, order='F')
-        np.save("music_validation_x_64_{}.npy".format(index), Xval)
-        np.save("music_validation_y_64_{}.npy".format(index), Yval)
+        np.save("music_validation_x_64_{}.npy".format(index), Xval).astype(np.float32)
+        np.save("music_validation_y_64_{}.npy".format(index), Yval).astype(np.float32)
         index = index + 1
 
 
