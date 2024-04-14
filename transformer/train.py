@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 import os
 import time
 import random
-from sklearn.metrics import average_precision_score
+from torchmetrics.functional.classification import multilabel_average_precision
 
 from dotenv import load_dotenv
 
@@ -118,8 +118,8 @@ class Trainer:
                     batch_y = batch_y.transpose(0, 1)
                     batch_X, batch_y = batch_X.float().to(device=device), batch_y.float().to(device=device)
                     preds = model(batch_X)
-                    true_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = batch_y.detach().cpu()
-                    pred_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = preds.detach().cpu()
+                    true_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = batch_y.detach()
+                    pred_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = preds.detach()
                     loss = criterion(preds, batch_y)
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
@@ -136,12 +136,8 @@ class Trainer:
                     if current_time - self.last_upload_time >= self.upload_interval:
                         mlflow.log_metric("train_loss", current_loss, step=self.training_step)
                         self.last_upload_time = current_time
-
-                    if i_batch > 0:
-                        break
-                    
-                eval_train_aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
-
+                
+                eval_train_aps = multilabel_average_precision(pred_vals.view(-1, args.output_dim), true_vals.view(-1, args.output_dim).int(), args.output_dim, average="micro")
                 eval_train_loss = epoch_loss / len(training_set)
 
                 mlflow.log_metric("eval_train_loss", eval_train_loss, step=self.epoch)
@@ -178,8 +174,8 @@ class Trainer:
                         batch_y = batch_y.transpose(0, 1)
                         batch_X, batch_y = batch_X.float().to(device=device), batch_y.float().to(device=device)
                         preds = model(batch_X)
-                        true_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = batch_y.detach().cpu()
-                        pred_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = preds.detach().cpu()
+                        true_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = batch_y.detach()
+                        pred_vals[:, i_batch*batch_size:(i_batch+1)*batch_size, :] = preds.detach()
                         loss = criterion(preds, batch_y)
                         total_batch_size += batch_size
                         epoch_loss += loss.item() * batch_size
@@ -187,9 +183,7 @@ class Trainer:
                         avg_epoch_loss = epoch_loss / (i_batch + 1)
                         print("[validation_01]", "batch:", i_batch, "| epoch avg loss:", avg_epoch_loss, "| iteration loss:", current_loss)
 
-                        if i_batch > 0:
-                            break
-                    eval_validation_aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
+                    eval_validation_aps = multilabel_average_precision(pred_vals.view(-1, args.output_dim), true_vals.view(-1, args.output_dim).int(), args.output_dim, average="micro")
 
                 eval_validation_loss = epoch_loss / len(validation_set)
 
