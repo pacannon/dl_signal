@@ -90,6 +90,7 @@ class Trainer:
         settings = self.settings
 
         with mlflow.start_run():
+            run_start_time = time.time()
             model = settings['model']
             optimizer = settings['optimizer']
             criterion = settings['criterion']
@@ -244,6 +245,12 @@ class Trainer:
 
                 end = time.time()
                 print("time: %d" % (end - start))
+
+                current_time = time.time()
+                elapsed_time = current_time - run_start_time
+
+                examples_per_second = (self.training_step * args.batch_size) / elapsed_time
+                mlflow.log_metric('examples_per_second', examples_per_second, step=self.epoch)
 
                 if args.logging:
                     sl.close()
