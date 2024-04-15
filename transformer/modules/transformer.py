@@ -23,9 +23,22 @@ class TransformerEncoder(nn.Module):
         attn_mask (bool): whether to apply mask on the attention weights
         complex_mha (bool): whether to use the reformulated complex multiheaded attention
         conj_attn (bool): whether to use the complex conjugate of the Key projections in the attention mechanism
+        pre_ln (bool): whether to position encoder block Layer Norms before Attention and FF
     """
 
-    def __init__(self, embed_dim, num_heads, layers, attn_dropout, relu_dropout, res_dropout, attn_mask=False, complex_mha=False, conj_attn=False):
+    def __init__(
+            self,
+            embed_dim,
+            num_heads,
+            layers,
+            attn_dropout,
+            relu_dropout,
+            res_dropout,
+            attn_mask,
+            complex_mha,
+            conj_attn,
+            pre_ln,
+        ):
         super().__init__()
         self.dropout = 0.3      # Embedding dropout
         self.attn_dropout = attn_dropout
@@ -35,16 +48,20 @@ class TransformerEncoder(nn.Module):
         self.attn_mask = attn_mask
         self.complex_mha = complex_mha
         self.conj_attn = conj_attn
+        self.pre_ln = pre_ln
         self.layers = nn.ModuleList([])
         self.layers.extend([
-            TransformerEncoderLayer(embed_dim=embed_dim,
-                                    num_heads=num_heads,
-                                    attn_dropout=attn_dropout,
-                                    relu_dropout=relu_dropout,
-                                    res_dropout=res_dropout,
-                                    attn_mask=attn_mask,
-                                    complex_mha=complex_mha,
-                                    conj_attn=conj_attn)
+            TransformerEncoderLayer(
+                embed_dim=embed_dim,
+                num_heads=num_heads,
+                attn_dropout=attn_dropout,
+                relu_dropout=relu_dropout,
+                res_dropout=res_dropout,
+                attn_mask=attn_mask,
+                complex_mha=complex_mha,
+                conj_attn=conj_attn,
+                pre_ln=pre_ln,
+            )
             for _ in range(layers)
         ])
         self.register_buffer('version', torch.Tensor([2]))
@@ -76,12 +93,24 @@ class TransformerEncoderLayer(nn.Module):
         embed_dim: Embedding dimension
     """
 
-    def __init__(self, embed_dim, num_heads=4, attn_dropout=0.1, relu_dropout=0.1, res_dropout=0.1, attn_mask=False, complex_mha=False, conj_attn=False):
+    def __init__(
+            self,
+            embed_dim,
+            num_heads=4,
+            attn_dropout=0.1,
+            relu_dropout=0.1,
+            res_dropout=0.1,
+            attn_mask=False,
+            complex_mha=False,
+            conj_attn=False,
+            pre_ln=False,
+        ):
         super().__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.complex_mha = complex_mha
         self.conj_attn = conj_attn
+        self.pre_ln = pre_ln
         self.self_attn = CMultiheadAttention(
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,
@@ -122,6 +151,10 @@ class TransformerEncoderLayer(nn.Module):
         residual_A = x_A
         residual_B = x_B
 
+        if self.pre_ln:
+            x_A = self.layer_norms_A[0](x_A)
+            x_B = self.layer_norms_B[0](x_B)
+
         if self.complex_mha:
             x_stacked = torch.stack((x_A, x_B), dim=-1)
             x = torch.view_as_complex(x_stacked)
@@ -148,8 +181,10 @@ class TransformerEncoderLayer(nn.Module):
                 x_A = x_aaa - x_abb - x_bab - x_bba
                 x_B = x_bbb + x_baa - x_aba + x_aab
          
-        x_A = self.layer_norms_A[0](x_A)
-        x_B = self.layer_norms_B[0](x_B)
+        if not self.pre_ln:
+            x_A = self.layer_norms_A[0](x_A)
+            x_B = self.layer_norms_B[0](x_B)
+
         # Dropout and Residual
         x_A = F.dropout(x_A, p=self.res_dropout, training=self.training)
         x_B = F.dropout(x_B, p=self.res_dropout, training=self.training)
@@ -161,6 +196,10 @@ class TransformerEncoderLayer(nn.Module):
         # ##FC Part
         residual_A = x_A
         residual_B = x_B
+
+        if self.pre_ln:
+            x_A = self.layer_norms_A[1](x_A)
+            x_B = self.layer_norms_B[1](x_B)
         
         # FC1
         x_A, x_B = self.fc1(x_A, x_B)
@@ -172,9 +211,10 @@ class TransformerEncoderLayer(nn.Module):
         # FC2
         x_A, x_B = self.fc2(x_A, x_B)
 
-        
-        x_A = self.layer_norms_A[1](x_A)
-        x_B = self.layer_norms_B[1](x_B)
+
+        if not self.pre_ln:
+            x_A = self.layer_norms_A[1](x_A)
+            x_B = self.layer_norms_B[1](x_B)
 
         x_A = F.dropout(x_A, p=self.res_dropout, training=self.training)
         x_B = F.dropout(x_B, p=self.res_dropout, training=self.training)

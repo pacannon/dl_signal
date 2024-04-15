@@ -39,20 +39,23 @@ mlflow.set_tracking_uri(uri=mlflow_server_uri)
 mlflow.set_experiment("dl_signal")
 
 def train_transformer():
-    model = TransformerModel(time_step=args.time_step,
-                             input_dims=args.modal_lengths,
-                             hidden_size=args.hidden_size,
-                             embed_dim=args.embed_dim,
-                             output_dim=args.output_dim,
-                             num_heads=args.num_heads,
-                             attn_dropout=args.attn_dropout,
-                             relu_dropout=args.relu_dropout,
-                             res_dropout=args.res_dropout,
-                             out_dropout=args.out_dropout,
-                             layers=args.nlevels,
-                             attn_mask=args.attn_mask,
-                             complex_mha=args.complex_mha,
-                             conj_attn=args.conj_attn)
+    model = TransformerModel(
+        time_step=args.time_step,
+        input_dims=args.modal_lengths,
+        hidden_size=args.hidden_size,
+        embed_dim=args.embed_dim,
+        output_dim=args.output_dim,
+        num_heads=args.num_heads,
+        attn_dropout=args.attn_dropout,
+        relu_dropout=args.relu_dropout,
+        res_dropout=args.res_dropout,
+        out_dropout=args.out_dropout,
+        layers=args.nlevels,
+        attn_mask=args.attn_mask,
+        complex_mha=args.complex_mha,
+        conj_attn=args.conj_attn,
+        pre_ln=args.pre_ln,
+    )
     if use_cuda:
         model = model.cuda()
 
@@ -131,7 +134,6 @@ class Trainer:
                     current_loss = loss.item() * batch_size
                     avg_epoch_loss = epoch_loss / (i_batch + 1)
                     self.training_step = self.training_step + 1
-                    
                     print("[train_01]", "batch:", i_batch, "| epoch avg loss:", avg_epoch_loss, "| iteration loss:", current_loss)
 
                     current_time = datetime.datetime.utcnow()
@@ -336,6 +338,8 @@ parser.add_argument('--output_dim', type=int, default=128,
                     help='dimension of output (default: 128)')
 parser.add_argument('--path', type=str, default='music/',
                     help='path for storing the dataset')
+parser.add_argument('--pre_ln', action='store_true', dest='pre_ln',
+                    help='position Layer Norms before attention and FF')
 parser.add_argument('--relu_dropout', type=float, default=0.1,
                     help='relu dropout')
 parser.add_argument('--res_dropout', type=float, default=0.1,

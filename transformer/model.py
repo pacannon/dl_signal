@@ -15,7 +15,24 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class TransformerModel(nn.Module):
-    def __init__(self, time_step, input_dims, hidden_size, embed_dim, output_dim, num_heads, attn_dropout, relu_dropout, res_dropout, out_dropout, layers, attn_mask=False, complex_mha=False, conj_attn=False):
+    def __init__(
+            self,
+            time_step,
+            input_dims,
+            hidden_size,
+            embed_dim,
+            output_dim,
+            num_heads,
+            attn_dropout,
+            relu_dropout,
+            res_dropout,
+            out_dropout,
+            layers,
+            attn_mask, 
+            complex_mha,
+            conj_attn,
+            pre_ln,
+        ):
         """
         Construct a basic Transfomer model.
         
@@ -32,6 +49,7 @@ class TransformerModel(nn.Module):
         :param attn_mask: A boolean indicating whether to use attention mask (for transformer decoder).
         :param complex_mha: A boolean indicating whether to use the reformulated complex multiheaded attention.
         :param conj_attn: A boolean indicating whether to conjugate the Key projections in the attention mechanism.
+        :param pre_ln: A boolean indicating whether to position encoder block Layer Norms before Attention and FF.
         """
         super(TransformerModel, self).__init__()
         self.conv = ComplexSequential(
@@ -77,6 +95,7 @@ class TransformerModel(nn.Module):
         self.embed_dim = embed_dim
         self.complex_mha = complex_mha
         self.conj_attn = conj_attn
+        self.pre_ln = pre_ln
         
         # Transformer networks
         self.trans = self.get_network()
@@ -91,8 +110,18 @@ class TransformerModel(nn.Module):
         self.out_dropout = nn.Dropout(out_dropout)
     def get_network(self):
         
-        return TransformerEncoder(embed_dim=self.embed_dim, num_heads=self.num_heads, layers=self.layers, attn_dropout=self.attn_dropout,
-            relu_dropout=self.relu_dropout, res_dropout=self.res_dropout, attn_mask=self.attn_mask, complex_mha=self.complex_mha, conj_attn=self.conj_attn)
+        return TransformerEncoder(
+            embed_dim=self.embed_dim,
+            num_heads=self.num_heads,
+            layers=self.layers,
+            attn_dropout=self.attn_dropout,
+            relu_dropout=self.relu_dropout,
+            res_dropout=self.res_dropout,
+            attn_mask=self.attn_mask,
+            complex_mha=self.complex_mha,
+            conj_attn=self.conj_attn,
+            pre_ln=self.pre_ln,
+        )
             
     def forward(self, x):
         """
