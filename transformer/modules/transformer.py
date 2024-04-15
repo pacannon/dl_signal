@@ -200,7 +200,7 @@ class TransformerEncoderLayer(nn.Module):
     def complex_attention_block(self, x):
 
         mask = None
-        x, _ = self.self_attn(x, attn_mask=mask)
+        x, _ = self.self_attn(x, attn_mask=mask, conj_attn=self.conj_attn)
         return x
 
 class TransformerDecoder(nn.Module):

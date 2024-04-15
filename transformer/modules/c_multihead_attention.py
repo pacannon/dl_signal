@@ -47,7 +47,7 @@ class CMultiheadAttention(nn.Module):
         if self.bias_v is not None:
             nn.init.xavier_normal_(self.bias_v)
 
-    def forward(self, x, attn_mask=None):
+    def forward(self, x, attn_mask=None, conj_attn=False):
         """Input shape: Time x Batch x Channel
         Timesteps can be masked by supplying a T x T mask in the
         `attn_mask` argument. Padding elements can be excluded from
@@ -92,7 +92,11 @@ class CMultiheadAttention(nn.Module):
             if attn_mask is not None:
                 attn_mask = torch.cat([attn_mask, attn_mask.new_zeros(attn_mask.size(0), 1)], dim=1)
 
-        attn_weights = torch.bmm(q, k.transpose(1, 2))
+        if (conj_attn):
+            attn_weights = torch.bmm(q, torch.conj(k.transpose(1, 2)))
+        else:
+            attn_weights = torch.bmm(q, k.transpose(1, 2))
+
         assert list(attn_weights.size()) == [bsz * self.num_heads, tgt_len, src_len]
 
         if attn_mask is not None:
