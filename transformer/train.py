@@ -29,13 +29,13 @@ if not load_dotenv():
     raise EnvironmentError("Missing .env file with valid key/values.")
 
 # Accessing variables
-mlflow_server_uri = get_env_variable('MLFLOW_SERVER_URI')
+# mlflow_server_uri = get_env_variable('MLFLOW_SERVER_URI')
 bucket_name = get_env_variable('BUCKET_NAME')
 
 log_path = 'logs'
 checkpoints_path = 'checkpoints'
 
-mlflow.set_tracking_uri(uri=mlflow_server_uri)
+# mlflow.set_tracking_uri(uri=mlflow_server_uri)
 mlflow.set_experiment("dl_signal")
 
 def train_transformer():
@@ -51,7 +51,8 @@ def train_transformer():
                              out_dropout=args.out_dropout,
                              layers=args.nlevels,
                              attn_mask=args.attn_mask,
-                             complex_mha=args.complex_mha)
+                             complex_mha=args.complex_mha,
+                             conj_attn=args.conj_attn)
     if use_cuda:
         model = model.cuda()
 
@@ -306,6 +307,8 @@ parser.add_argument('--clip', type=float, default=0.35,
                     help='gradient clip value (default: 0.35)')
 parser.add_argument('--complex_mha', action='store_true', dest='complex_mha',
                     help='use reformulated complex multiheaded attention')
+parser.add_argument('--conj_attn', action='store_true', dest='conj_attn',
+                    help='use reformulated complex conjugate attention')
 parser.add_argument('--data', type=str, default='music')
 parser.add_argument('--embed_dim', type=int, default=320,
                     help='dimension of real and imag embeddimg before transformer (default: 320)')

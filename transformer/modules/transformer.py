@@ -21,10 +21,11 @@ class TransformerEncoder(nn.Module):
         relu_dropout (float): dropout applied on the first layer of the residual block
         res_dropout (float): dropout applied on the residual block
         attn_mask (bool): whether to apply mask on the attention weights
-        complex_mha (bool): whether to use the reformulated complex multiheaded attention.
+        complex_mha (bool): whether to use the reformulated complex multiheaded attention
+        conj_attn (bool): whether to use the complex conjugate of the Key projections in the attention mechanism
     """
 
-    def __init__(self, embed_dim, num_heads, layers, attn_dropout, relu_dropout, res_dropout, attn_mask=False, complex_mha=True):
+    def __init__(self, embed_dim, num_heads, layers, attn_dropout, relu_dropout, res_dropout, attn_mask=False, complex_mha=False, conj_attn=False):
         super().__init__()
         self.dropout = 0.3      # Embedding dropout
         self.attn_dropout = attn_dropout
@@ -32,6 +33,8 @@ class TransformerEncoder(nn.Module):
         self.embed_scale = 1
         self.embed_positions = SinusoidalPositionalEmbedding(embed_dim)        
         self.attn_mask = attn_mask
+        self.complex_mha = complex_mha
+        self.conj_attn = conj_attn
         self.layers = nn.ModuleList([])
         self.layers.extend([
             TransformerEncoderLayer(embed_dim=embed_dim,
@@ -40,7 +43,8 @@ class TransformerEncoder(nn.Module):
                                     relu_dropout=relu_dropout,
                                     res_dropout=res_dropout,
                                     attn_mask=attn_mask,
-                                    complex_mha=complex_mha)
+                                    complex_mha=complex_mha,
+                                    conj_attn=conj_attn)
             for _ in range(layers)
         ])
         self.register_buffer('version', torch.Tensor([2]))
@@ -72,11 +76,12 @@ class TransformerEncoderLayer(nn.Module):
         embed_dim: Embedding dimension
     """
 
-    def __init__(self, embed_dim, num_heads=4, attn_dropout=0.1, relu_dropout=0.1, res_dropout=0.1, attn_mask=False, complex_mha=True):
+    def __init__(self, embed_dim, num_heads=4, attn_dropout=0.1, relu_dropout=0.1, res_dropout=0.1, attn_mask=False, complex_mha=False, conj_attn=False):
         super().__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
-        self.complex_mha=complex_mha
+        self.complex_mha = complex_mha
+        self.conj_attn = conj_attn
         self.self_attn = CMultiheadAttention(
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,
@@ -136,8 +141,12 @@ class TransformerEncoderLayer(nn.Module):
             x_bbb = self.attention_block(x_B, x_B, x_B)
 
 
-            x_A = x_aaa - x_abb - x_bab - x_bba
-            x_B = -x_bbb + x_baa + x_aba + x_aab
+            if self.conj_attn:
+                x_A = x_aaa + x_abb - x_bab + x_bba
+                x_B = -x_bbb + x_baa + x_aba + x_aab
+            else:
+                x_A = x_aaa - x_abb - x_bab - x_bba
+                x_B = x_bbb + x_baa - x_aba + x_aab
          
         x_A = self.layer_norms_A[0](x_A)
         x_B = self.layer_norms_B[0](x_B)

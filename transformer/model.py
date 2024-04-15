@@ -15,7 +15,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class TransformerModel(nn.Module):
-    def __init__(self, time_step, input_dims, hidden_size, embed_dim, output_dim, num_heads, attn_dropout, relu_dropout, res_dropout, out_dropout, layers, attn_mask=False, complex_mha=True):
+    def __init__(self, time_step, input_dims, hidden_size, embed_dim, output_dim, num_heads, attn_dropout, relu_dropout, res_dropout, out_dropout, layers, attn_mask=False, complex_mha=False, conj_attn=False):
         """
         Construct a basic Transfomer model.
         
@@ -31,6 +31,7 @@ class TransformerModel(nn.Module):
         :param layers: The number of transformer blocks.
         :param attn_mask: A boolean indicating whether to use attention mask (for transformer decoder).
         :param complex_mha: A boolean indicating whether to use the reformulated complex multiheaded attention.
+        :param conj_attn: A boolean indicating whether to conjugate the Key projections in the attention mechanism.
         """
         super(TransformerModel, self).__init__()
         self.conv = ComplexSequential(
@@ -74,9 +75,11 @@ class TransformerModel(nn.Module):
         self.res_dropout = res_dropout
         self.attn_mask = attn_mask
         self.embed_dim = embed_dim
+        self.complex_mha = complex_mha
+        self.conj_attn = conj_attn
         
         # Transformer networks
-        self.trans = self.get_network(complex_mha)
+        self.trans = self.get_network()
         print("Encoder Model size: {0}".format(count_parameters(self.trans)))
         # Projection layers
         self.proj = ComplexLinear(self.d_a, self.embed_dim)
@@ -86,10 +89,10 @@ class TransformerModel(nn.Module):
         self.out_fc2 = nn.Linear(h_out, output_dim)
         
         self.out_dropout = nn.Dropout(out_dropout)
-    def get_network(self, complex_mha):
+    def get_network(self):
         
         return TransformerEncoder(embed_dim=self.embed_dim, num_heads=self.num_heads, layers=self.layers, attn_dropout=self.attn_dropout,
-            relu_dropout=self.relu_dropout, res_dropout=self.res_dropout, attn_mask=self.attn_mask, complex_mha=complex_mha)
+            relu_dropout=self.relu_dropout, res_dropout=self.res_dropout, attn_mask=self.attn_mask, complex_mha=self.complex_mha, conj_attn=self.conj_attn)
             
     def forward(self, x):
         """
