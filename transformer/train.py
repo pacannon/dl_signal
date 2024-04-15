@@ -29,13 +29,13 @@ if not load_dotenv():
     raise EnvironmentError("Missing .env file with valid key/values.")
 
 # Accessing variables
-# mlflow_server_uri = get_env_variable('MLFLOW_SERVER_URI')
+mlflow_server_uri = get_env_variable('MLFLOW_SERVER_URI')
 bucket_name = get_env_variable('BUCKET_NAME')
 
 log_path = 'logs'
 checkpoints_path = 'checkpoints'
 
-# mlflow.set_tracking_uri(uri=mlflow_server_uri)
+mlflow.set_tracking_uri(uri=mlflow_server_uri)
 mlflow.set_experiment("dl_signal")
 
 def train_transformer():
