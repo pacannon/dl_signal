@@ -147,7 +147,7 @@ class Trainer:
                             for component in range(2):
                                 for moment in range(3):
                                     mlflow.log_metric(f"variance_{'re' if component == 0 else 'im'}_m{moment}", stats[layer][component][moment], step=layer)
-                        print("Recorded ecoder layer variance statistics.")
+                        print("Recorded encoder layer variance statistics.")
 
 
                     current_time = datetime.datetime.utcnow()
