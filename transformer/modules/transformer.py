@@ -68,6 +68,10 @@ class TransformerEncoder(nn.Module):
             )
             for _ in range(layers)
         ])
+
+        self.variance_stats = False
+        self.layer_stats = torch.zeros((layers, 2, 3), dtype=torch.float)
+
         self.register_buffer('version', torch.Tensor([2]))
 
     def forward(self, input_A, input_B):
@@ -79,10 +83,57 @@ class TransformerEncoder(nn.Module):
         input_A = self.scale_embed_position_dropout(input_A)
         input_B = self.scale_embed_position_dropout(input_B)
         # For each transformer encoder layer:
+        i = 0
         for layer in self.layers:
             input_A, input_B = layer(input_A, input_B)
+                                 
+            if self.variance_stats:
+                self.update_stats(input_A, 0, i)
+                self.update_stats(input_B, 1, i)
+                i += 1
+            
         return input_A, input_B
+    
+    def update_stats(self, vector, stats_index, layer_index):
+        vector_flat = vector.view(-1).detach()
+        n = vector_flat.numel()
 
+        current_count = self.layer_stats[layer_index][stats_index, 0]
+        new_count = current_count + n
+
+        current_sum = self.layer_stats[layer_index][stats_index, 1]
+        new_sum = current_sum + vector_flat.sum()
+
+        current_sum_squares = self.layer_stats[layer_index][stats_index, 2]
+        new_sum_squares = current_sum_squares + (vector_flat ** 2).sum()
+
+        self.layer_stats[layer_index][stats_index, 0] = new_count
+        self.layer_stats[layer_index][stats_index, 1] = new_sum
+        self.layer_stats[layer_index][stats_index, 2] = new_sum_squares
+
+
+    def get_and_reset_stats(self):
+        stats_output = torch.zeros((self.layer_stats.shape[0], 2, 3), dtype=torch.float)
+
+        for layer_index in range(self.layer_stats.shape[0]):
+            for stats_index in range(2): 
+                count = self.layer_stats[layer_index][stats_index, 0]
+                total_sum = self.layer_stats[layer_index][stats_index, 1]
+                sum_squares = self.layer_stats[layer_index][stats_index, 2]
+
+                mean = total_sum / count if count != 0 else 0
+                variance = (sum_squares - (total_sum ** 2) / count) / count if count != 0 else 0
+
+                stats_output[layer_index, stats_index, 0] = count
+                stats_output[layer_index, stats_index, 1] = mean
+                stats_output[layer_index, stats_index, 2] = variance
+
+        # Reset statistics
+        self.layer_stats.zero_()
+        return stats_output
+
+
+    
     def scale_embed_position_dropout(self, x_in):
         x = self.embed_scale * x_in
         if self.embed_positions is not None:

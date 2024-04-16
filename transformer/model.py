@@ -126,6 +126,9 @@ class TransformerModel(nn.Module):
             pre_ln=self.pre_ln,
             softmax=self.softmax,
         )
+    
+    def get_and_reset_stats(self):
+        return self.trans.get_and_reset_stats()
             
     def forward(self, x):
         """

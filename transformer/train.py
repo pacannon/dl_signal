@@ -120,6 +120,8 @@ class Trainer:
 
                 for i_batch, (batch_X, batch_y) in enumerate(train_loader):
                     model.zero_grad()
+                    if args.variance_stats and i_batch == ((len(training_set) // batch_size) // 2) and self.epoch == 0:
+                        model.trans.variance_stats = True
                     batch_X = batch_X.transpose(0, 1)
                     batch_y = batch_y.transpose(0, 1)
                     batch_X, batch_y = batch_X.float().to(device=device), batch_y.float().to(device=device)
@@ -136,6 +138,17 @@ class Trainer:
                     avg_epoch_loss = epoch_loss / (i_batch + 1)
                     self.training_step = self.training_step + 1
                     print("[train_01]", "batch:", i_batch, "| epoch avg loss:", avg_epoch_loss, "| iteration loss:", current_loss)
+
+                    if args.variance_stats and i_batch == ((len(training_set) // batch_size) // 2) and self.epoch == 0:
+                        model.trans.variance_stats = False
+                        stats = model.get_and_reset_stats()
+
+                        for layer in range(stats.shape[0]):
+                            for component in range(2):
+                                for moment in range(3):
+                                    mlflow.log_metric(f"variance_{'re' if component == 0 else 'im'}_m{moment}", stats[layer][component][moment], step=layer)
+                        print("Recorded ecoder layer variance statistics.")
+
 
                     current_time = datetime.datetime.utcnow()
                     if current_time - self.last_upload_time >= self.upload_interval:
@@ -351,6 +364,8 @@ parser.add_argument('--softmax', action='store_true', dest='softmax',
                     help='use softmax for attention scoring')
 parser.add_argument('--time_step', type=int, default=64,
                     help='number of time step for each sequence(default: 64)')
+parser.add_argument('--variance_stats', action='store_true', dest='variance_stats',
+                    help='record encoder layer output activation variances')
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
