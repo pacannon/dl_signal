@@ -110,7 +110,7 @@ class TransformerModel(nn.Module):
         self.proj = ComplexLinear(self.d_a, self.embed_dim)
 
         if self.pre_ln:
-            self.norm = LayerNorm(final_out, final_out)
+            self.norm = LayerNorm(final_out)
         
         self.out_fc1 = nn.Linear(final_out, h_out)
         
