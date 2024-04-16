@@ -248,6 +248,11 @@ class ComplexConv1d(nn.Module):
         super(ComplexConv1d, self).__init__()
         self.conv_r = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
         self.conv_i = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+        self.dilation = dilation
 
     def forward(self,input_r, input_i):
         return self.conv_r(input_r)-self.conv_i(input_i), \

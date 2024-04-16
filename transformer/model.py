@@ -7,7 +7,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import numpy as np
-from modules.transformer import TransformerEncoder, TransformerDecoder
+from modules.transformer import LayerNorm, TransformerEncoder, TransformerDecoder
 from models import *
 from utils import count_parameters
 
@@ -54,6 +54,7 @@ class TransformerModel(nn.Module):
         :param softmax: A boolean indicating whether to use softmax in the attention scoring.
         """
         super(TransformerModel, self).__init__()
+
         self.conv = ComplexSequential(
             ComplexConv1d(in_channels=1, out_channels=16, kernel_size=6, stride=1),
             ComplexBatchNorm1d(16),
@@ -83,9 +84,11 @@ class TransformerModel(nn.Module):
             )
         [self.orig_d_a, self.orig_d_b] = input_dims
         assert self.orig_d_a == self.orig_d_b
-        channels = ((((((((((self.orig_d_a -6)//1+1 -2)//2+1 -3)//1+1 -2)//2+1 
-            -3)//1+1 -2)//2+1 -3)//1+1 -2)//2+1 -3)//1+1 -2)//2+1
-        self.d_a, self.d_b = 128*channels, 128*channels
+        
+        final_flattented_dim = compute_dimensions(self.conv, self.orig_d_a)
+
+        self.d_a, self.d_b = final_flattented_dim, final_flattented_dim
+        
         final_out = embed_dim * 2
         h_out = hidden_size
         self.num_heads = num_heads
@@ -105,6 +108,9 @@ class TransformerModel(nn.Module):
         print("Encoder Model size: {0}".format(count_parameters(self.trans)))
         # Projection layers
         self.proj = ComplexLinear(self.d_a, self.embed_dim)
+
+        if self.pre_ln:
+            self.norm = LayerNorm(final_out, final_out)
         
         self.out_fc1 = nn.Linear(final_out, h_out)
         
@@ -144,6 +150,10 @@ class TransformerModel(nn.Module):
         # Pass the input through individual transformers
         h_as, h_bs = self.trans(input_a, input_b)
         h_concat = torch.cat([h_as, h_bs], dim=-1)
+
+        if self.pre_ln:
+            h_concat = self.norm(h_concat)
+
         output = self.out_fc2(self.out_dropout(F.relu(self.out_fc1(h_concat))))
         # No sigmoid because we use BCEwithlogitis which contains sigmoid layer and more stable
         return output
@@ -271,3 +281,27 @@ class TransformerGenerationModel(nn.Module):
             assert False
 
         return output
+
+
+
+def calculate_output_dim(input_dim, kernel_size, stride=1, padding=0, dilation=1):
+    return ((input_dim + 2 * padding - dilation * (kernel_size - 1) - 1) // stride) + 1
+
+def compute_dimensions(layers, input_dim):
+    current_dim = input_dim
+    final_channels = 1
+
+    for layer in layers:
+        if isinstance(layer, (ComplexConv1d, ComplexMaxPool1d)):
+            current_dim = calculate_output_dim(
+                input_dim=current_dim,
+                kernel_size=layer.kernel_size,
+                stride=layer.stride,
+                padding=layer.padding,
+                dilation=layer.dilation
+            )
+            if isinstance(layer, ComplexConv1d):
+                final_channels = layer.out_channels
+
+    flattened_output_size = current_dim * final_channels
+    return flattened_output_size
