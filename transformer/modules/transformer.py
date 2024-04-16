@@ -24,6 +24,7 @@ class TransformerEncoder(nn.Module):
         complex_mha (bool): whether to use the reformulated complex multiheaded attention
         conj_attn (bool): whether to use the complex conjugate of the Key projections in the attention mechanism
         pre_ln (bool): whether to position encoder block Layer Norms before Attention and FF
+        softmax (bool): whether to use softmax in the attention scoring
     """
 
     def __init__(
@@ -38,6 +39,7 @@ class TransformerEncoder(nn.Module):
             complex_mha,
             conj_attn,
             pre_ln,
+            softmax,
         ):
         super().__init__()
         self.dropout = 0.3      # Embedding dropout
@@ -49,6 +51,7 @@ class TransformerEncoder(nn.Module):
         self.complex_mha = complex_mha
         self.conj_attn = conj_attn
         self.pre_ln = pre_ln
+        self.softmax = softmax
         self.layers = nn.ModuleList([])
         self.layers.extend([
             TransformerEncoderLayer(
@@ -61,6 +64,7 @@ class TransformerEncoder(nn.Module):
                 complex_mha=complex_mha,
                 conj_attn=conj_attn,
                 pre_ln=pre_ln,
+                softmax=softmax,
             )
             for _ in range(layers)
         ])
@@ -104,6 +108,7 @@ class TransformerEncoderLayer(nn.Module):
             complex_mha=False,
             conj_attn=False,
             pre_ln=False,
+            softmax=False,
         ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -111,20 +116,23 @@ class TransformerEncoderLayer(nn.Module):
         self.complex_mha = complex_mha
         self.conj_attn = conj_attn
         self.pre_ln = pre_ln
+        self.softmax = softmax
         self.self_attn = CMultiheadAttention(
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,
             attn_dropout=attn_dropout,
             bias=True,
             add_bias_kv=True, 
-            add_zero_attn=True
+            add_zero_attn=True,
+            softmax=self.softmax,
         ) if self.complex_mha else MultiheadAttention(
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,
             attn_dropout=attn_dropout,
             bias=True,
             add_bias_kv=True, 
-            add_zero_attn=True
+            add_zero_attn=True,
+            softmax=self.softmax,
         )
         self.attn_mask = attn_mask
         self.crossmodal = True

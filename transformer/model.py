@@ -32,6 +32,7 @@ class TransformerModel(nn.Module):
             complex_mha,
             conj_attn,
             pre_ln,
+            softmax,
         ):
         """
         Construct a basic Transfomer model.
@@ -50,6 +51,7 @@ class TransformerModel(nn.Module):
         :param complex_mha: A boolean indicating whether to use the reformulated complex multiheaded attention.
         :param conj_attn: A boolean indicating whether to conjugate the Key projections in the attention mechanism.
         :param pre_ln: A boolean indicating whether to position encoder block Layer Norms before Attention and FF.
+        :param softmax: A boolean indicating whether to use softmax in the attention scoring.
         """
         super(TransformerModel, self).__init__()
         self.conv = ComplexSequential(
@@ -96,6 +98,7 @@ class TransformerModel(nn.Module):
         self.complex_mha = complex_mha
         self.conj_attn = conj_attn
         self.pre_ln = pre_ln
+        self.softmax = softmax
         
         # Transformer networks
         self.trans = self.get_network()
@@ -121,6 +124,7 @@ class TransformerModel(nn.Module):
             complex_mha=self.complex_mha,
             conj_attn=self.conj_attn,
             pre_ln=self.pre_ln,
+            softmax=self.softmax,
         )
             
     def forward(self, x):
