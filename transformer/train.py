@@ -96,7 +96,13 @@ class Trainer:
     def train_model(self):
         settings = self.settings
 
-        with mlflow.start_run():
+        squared_norm_part = "-squared_norm" if args.squared_norm else ""
+        rescale_part = f"-rescale_{args.rescale}" if args.rescale != 1 else ""
+
+        run_name = f"complex_mha-pre_ln-softmax{squared_norm_part}{rescale_part}"
+        run_name = None
+
+        with mlflow.start_run(run_name=run_name, nested=nested_runs):
             run_start_time = time.time()
             model = settings['model']
             optimizer = settings['optimizer']
@@ -400,4 +406,15 @@ elif args.data == 'iq':
 print("Finish loading the data....")
 train_loader = torch.utils.data.DataLoader(training_set, batch_size=args.batch_size, shuffle=True)
 validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=args.batch_size, shuffle=True)
-train_transformer()
+
+nested_runs = False
+
+if nested_runs:
+    with mlflow.start_run(run_id=None):
+        for squared_norm in [True]:
+            args.squared_norm = squared_norm
+            for rescale in [1, 2, 4]:
+                args.rescale = rescale
+                train_transformer()
+else:
+    train_transformer()
