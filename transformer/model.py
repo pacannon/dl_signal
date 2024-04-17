@@ -56,28 +56,28 @@ class TransformerModel(nn.Module):
         super(TransformerModel, self).__init__()
 
         self.conv = ComplexSequential(
-            ComplexConv1d(in_channels=1, out_channels=2, kernel_size=6, stride=1),
-            ComplexBatchNorm1d(2),
-            ComplexReLU(),
-            ComplexMaxPool1d(2, stride=2),
-
-            ComplexConv1d(in_channels=2, out_channels=4, kernel_size=5, stride=1),
-            ComplexBatchNorm1d(4),
-            ComplexReLU(),
-            ComplexMaxPool1d(2, stride=2),
-
-            ComplexConv1d(in_channels=4, out_channels=8, kernel_size=4, stride=1),
-            ComplexBatchNorm1d(8),
-            ComplexReLU(),
-            ComplexMaxPool1d(2, stride=2),
-
-            ComplexConv1d(in_channels=8, out_channels=16, kernel_size=3, stride=1),
+            ComplexConv1d(in_channels=1, out_channels=16, kernel_size=6, stride=1),
             ComplexBatchNorm1d(16),
             ComplexReLU(),
             ComplexMaxPool1d(2, stride=2),
 
             ComplexConv1d(in_channels=16, out_channels=32, kernel_size=3, stride=1),
             ComplexBatchNorm1d(32),
+            ComplexReLU(),
+            ComplexMaxPool1d(2, stride=2),
+
+            ComplexConv1d(in_channels=32, out_channels=64, kernel_size=3, stride=1),
+            ComplexBatchNorm1d(64),
+            ComplexReLU(),
+            ComplexMaxPool1d(2, stride=2),
+
+            ComplexConv1d(in_channels=64, out_channels=64, kernel_size=3, stride=1),
+            ComplexBatchNorm1d(64),
+            ComplexReLU(),
+            ComplexMaxPool1d(2, stride=2),
+
+            ComplexConv1d(in_channels=64, out_channels=128, kernel_size=3, stride=1),
+            ComplexBatchNorm1d(128),
             ComplexReLU(),
             ComplexMaxPool1d(2, stride=2),
             ComplexFlatten(),
@@ -102,7 +102,7 @@ class TransformerModel(nn.Module):
         self.conj_attn = conj_attn
         self.pre_ln = pre_ln
         self.softmax = softmax
-
+        
         # Transformer networks
         self.trans = self.get_network()
         print("Encoder Model size: {0}".format(count_parameters(self.trans)))
@@ -117,20 +117,6 @@ class TransformerModel(nn.Module):
         self.out_fc2 = nn.Linear(h_out, output_dim)
         
         self.out_dropout = nn.Dropout(out_dropout)
-        
-
-        # print(
-        #     f'orig_d_a: {self.orig_d_a}\n',
-        #     f'd_a: {self.d_a}\n',
-        #     f'embed_dim: {self.embed_dim}\n',
-        #     f'proj?: {self.d_a * self.embed_dim}\n',
-        #     f'pro?: {count_parameters(self.proj)}\n',
-        #     f'conv: {count_parameters(self.conv)}\n',
-        #     f'trans: {count_parameters(self.trans)}\n',
-        #     f'norm: {0 if not self.pre_ln else count_parameters(self.norm)}\n',
-        #     f'out_fc1: {count_parameters(self.out_fc1)}\n',
-        #     f'out_fc2: {count_parameters(self.out_fc1)}\n',
-        # )
     def get_network(self):
         
         return TransformerEncoder(
