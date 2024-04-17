@@ -56,6 +56,8 @@ def train_transformer():
         conj_attn=args.conj_attn,
         pre_ln=args.pre_ln,
         softmax=args.softmax,
+        rescale=args.rescale,
+        squared_norm=args.squared_norm,
     )
     if use_cuda:
         model = model.cuda()
@@ -358,10 +360,14 @@ parser.add_argument('--relu_dropout', type=float, default=0.1,
                     help='relu dropout')
 parser.add_argument('--res_dropout', type=float, default=0.1,
                     help='residual block dropout')
+parser.add_argument('--rescale', type=float, default=1.0,
+                    help='additional scaling factor for normalization of softmax dot product (default: 1.0)')
 parser.add_argument('--seed', type=int, default=1111,
                     help='random seed')
 parser.add_argument('--softmax', action='store_true', dest='softmax',
                     help='use softmax for attention scoring')
+parser.add_argument('--squared_norm', action='store_true', dest='squared_norm',
+                    help='square the real and imaginary parts before softmax in attention')
 parser.add_argument('--time_step', type=int, default=64,
                     help='number of time step for each sequence(default: 64)')
 parser.add_argument('--variance_stats', action='store_true', dest='variance_stats',

@@ -33,6 +33,8 @@ class TransformerModel(nn.Module):
             conj_attn,
             pre_ln,
             softmax,
+            rescale,
+            squared_norm,
         ):
         """
         Construct a basic Transfomer model.
@@ -52,6 +54,8 @@ class TransformerModel(nn.Module):
         :param conj_attn: A boolean indicating whether to conjugate the Key projections in the attention mechanism.
         :param pre_ln: A boolean indicating whether to position encoder block Layer Norms before Attention and FF.
         :param softmax: A boolean indicating whether to use softmax in the attention scoring.
+        :param rescale: A boolean indicating by what additional factor to rescale the attention scores after applying softmax.
+        :param squared_norm: A boolean indicating whether to use squared norm on Re and Im parts during attention score softmax.
         """
         super(TransformerModel, self).__init__()
 
@@ -102,6 +106,8 @@ class TransformerModel(nn.Module):
         self.conj_attn = conj_attn
         self.pre_ln = pre_ln
         self.softmax = softmax
+        self.rescale = rescale
+        self.squared_norm = squared_norm
         
         # Transformer networks
         self.trans = self.get_network()
@@ -131,6 +137,8 @@ class TransformerModel(nn.Module):
             conj_attn=self.conj_attn,
             pre_ln=self.pre_ln,
             softmax=self.softmax,
+            rescale=self.rescale,
+            squared_norm=self.squared_norm,
         )
     
     def get_and_reset_stats(self):

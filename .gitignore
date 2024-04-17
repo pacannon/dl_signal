@@ -3,8 +3,9 @@
 
 /checkpoints
 /logs
-/music/music_*
-/music/musicnet_*
+music_*.npy
+musicnet_*.npz
+/mlruns
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

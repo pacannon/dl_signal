@@ -18,15 +18,19 @@ class CMultiheadAttention(nn.Module):
             add_bias_kv=False,
             add_zero_attn=False,
             softmax=False,
+            rescale=1,
+            squared_norm=False,
         ):
         super().__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.attn_dropout = attn_dropout
         self.softmax = softmax
+        self.rescale = rescale
+        self.squared_norm = squared_norm
         self.head_dim = embed_dim // num_heads
         assert self.head_dim * num_heads == self.embed_dim, "embed_dim must be divisible by num_heads"
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = (self.rescale * self.head_dim) ** -0.5
 
         self.in_proj_weight = torch.nn.Parameter(torch.empty(3 * embed_dim, embed_dim, dtype=torch.complex64))
 
@@ -117,7 +121,10 @@ class CMultiheadAttention(nn.Module):
                 print(attn_mask.unsqueeze(0).shape)
                 assert False
 
-        attn_weights = (attn_weights.real + attn_weights.imag)
+        if self.squared_norm:  
+            attn_weights = (attn_weights.real**2 + attn_weights.imag**2)
+        else:
+            attn_weights = (attn_weights.real + attn_weights.imag)
         
         if self.softmax:
             attn_weights = F.softmax(attn_weights, dim=-1)

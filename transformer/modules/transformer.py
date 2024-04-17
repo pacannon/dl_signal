@@ -25,6 +25,8 @@ class TransformerEncoder(nn.Module):
         conj_attn (bool): whether to use the complex conjugate of the Key projections in the attention mechanism
         pre_ln (bool): whether to position encoder block Layer Norms before Attention and FF
         softmax (bool): whether to use softmax in the attention scoring
+        rescale (bool): whether to rescale the embeddings by an additional factor after applying softmax
+        squared_norm (bool): whether to use squared norm on the real and imaginary parts during attention score softmax
     """
 
     def __init__(
@@ -40,6 +42,8 @@ class TransformerEncoder(nn.Module):
             conj_attn,
             pre_ln,
             softmax,
+            rescale,
+            squared_norm,
         ):
         super().__init__()
         self.dropout = 0.3      # Embedding dropout
@@ -52,6 +56,8 @@ class TransformerEncoder(nn.Module):
         self.conj_attn = conj_attn
         self.pre_ln = pre_ln
         self.softmax = softmax
+        self.squared_norm = squared_norm
+        self.rescale = rescale
         self.layers = nn.ModuleList([])
         self.layers.extend([
             TransformerEncoderLayer(
@@ -65,6 +71,8 @@ class TransformerEncoder(nn.Module):
                 conj_attn=conj_attn,
                 pre_ln=pre_ln,
                 softmax=softmax,
+                rescale=rescale,
+                squared_norm=squared_norm,
             )
             for _ in range(layers)
         ])
@@ -160,6 +168,8 @@ class TransformerEncoderLayer(nn.Module):
             conj_attn=False,
             pre_ln=False,
             softmax=False,
+            rescale=1,
+            squared_norm=True,
         ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -168,6 +178,8 @@ class TransformerEncoderLayer(nn.Module):
         self.conj_attn = conj_attn
         self.pre_ln = pre_ln
         self.softmax = softmax
+        self.rescale = rescale
+        self.squared_norm = squared_norm
         self.self_attn = CMultiheadAttention(
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,
@@ -176,6 +188,8 @@ class TransformerEncoderLayer(nn.Module):
             add_bias_kv=True, 
             add_zero_attn=True,
             softmax=self.softmax,
+            rescale=self.rescale,
+            squared_norm=self.squared_norm,
         ) if self.complex_mha else MultiheadAttention(
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,
@@ -184,6 +198,8 @@ class TransformerEncoderLayer(nn.Module):
             add_bias_kv=True, 
             add_zero_attn=True,
             softmax=self.softmax,
+            rescale=self.rescale,
+            squared_norm=self.squared_norm,
         )
         self.attn_mask = attn_mask
         self.crossmodal = True
