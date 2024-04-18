@@ -75,6 +75,7 @@ class TransformerEncoder(nn.Module):
                 softmax=softmax,
                 rescale=rescale,
                 squared_norm=squared_norm,
+                minus_im=minus_im,
             )
             for _ in range(layers)
         ])
@@ -172,6 +173,7 @@ class TransformerEncoderLayer(nn.Module):
             softmax=False,
             rescale=1,
             squared_norm=True,
+            minus_im=False,
         ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -182,6 +184,7 @@ class TransformerEncoderLayer(nn.Module):
         self.softmax = softmax
         self.rescale = rescale
         self.squared_norm = squared_norm
+        self.minus_im = minus_im
         self.self_attn = CMultiheadAttention(
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,

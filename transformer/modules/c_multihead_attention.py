@@ -125,13 +125,17 @@ class CMultiheadAttention(nn.Module):
 
         if self.squared_norm:
             if self.minus_im:
+                print('sub')
                 attn_weights = (attn_weights.real**2 - attn_weights.imag**2)
             else:
+                print('add')
                 attn_weights = (attn_weights.real**2 + attn_weights.imag**2)
         else:
             if self.minus_im:
+                print('sub')
                 attn_weights = (attn_weights.real - attn_weights.imag)
             else:
+                print('add')
                 attn_weights = (attn_weights.real + attn_weights.imag)
         
         if self.softmax:
