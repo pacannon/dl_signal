@@ -35,6 +35,7 @@ class TransformerModel(nn.Module):
             softmax,
             rescale,
             squared_norm,
+            minus_im,
         ):
         """
         Construct a basic Transfomer model.
@@ -56,6 +57,7 @@ class TransformerModel(nn.Module):
         :param softmax: A boolean indicating whether to use softmax in the attention scoring.
         :param rescale: A boolean indicating by what additional factor to rescale the attention scores after applying softmax.
         :param squared_norm: A boolean indicating whether to use squared norm on Re and Im parts during attention score softmax.
+        :param minus_im: A boolean indicating whether to subtract the imaginary part in the complex multi-headed attention mechanism.
         """
         super(TransformerModel, self).__init__()
 
@@ -108,6 +110,7 @@ class TransformerModel(nn.Module):
         self.softmax = softmax
         self.rescale = rescale
         self.squared_norm = squared_norm
+        self.minus_im = minus_im
         
         # Transformer networks
         self.trans = self.get_network()
@@ -139,6 +142,7 @@ class TransformerModel(nn.Module):
             softmax=self.softmax,
             rescale=self.rescale,
             squared_norm=self.squared_norm,
+            minus_im=self.minus_im,
         )
     
     def get_and_reset_stats(self):

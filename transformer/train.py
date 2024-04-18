@@ -58,6 +58,7 @@ def train_transformer():
         softmax=args.softmax,
         rescale=args.rescale,
         squared_norm=args.squared_norm,
+        minus_im=args.minus_im,
     )
     if use_cuda:
         model = model.cuda()
@@ -344,6 +345,8 @@ parser.add_argument('--disable-logging', action='store_false', dest='logging',
                     help='disables logging')
 parser.add_argument('--modal_lengths', nargs='+', type=int, default=[2048, 2048],
                     help='lengths of each modality (default: [2048, 2048])')
+parser.add_argument('--minus_im', action='store_true', dest='minus_im',
+                    help='subtract the imaginary part from the real part in the complex attention mechanism')
 parser.add_argument('--model', type=str, default='Transformer',
                     help='name of the model to use (Transformer, etc.)')
 parser.add_argument('--nlevels', type=int, default=6,

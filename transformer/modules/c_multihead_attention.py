@@ -20,6 +20,7 @@ class CMultiheadAttention(nn.Module):
             softmax=False,
             rescale=1,
             squared_norm=False,
+            minus_im=False,
         ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -28,6 +29,7 @@ class CMultiheadAttention(nn.Module):
         self.softmax = softmax
         self.rescale = rescale
         self.squared_norm = squared_norm
+        self.minus_im = minus_im
         self.head_dim = embed_dim // num_heads
         assert self.head_dim * num_heads == self.embed_dim, "embed_dim must be divisible by num_heads"
         self.scaling = (self.rescale * self.head_dim) ** -0.5
@@ -121,10 +123,16 @@ class CMultiheadAttention(nn.Module):
                 print(attn_mask.unsqueeze(0).shape)
                 assert False
 
-        if self.squared_norm:  
-            attn_weights = (attn_weights.real**2 + attn_weights.imag**2)
+        if self.squared_norm:
+            if self.minus_im:
+                attn_weights = (attn_weights.real**2 - attn_weights.imag**2)
+            else:
+                attn_weights = (attn_weights.real**2 + attn_weights.imag**2)
         else:
-            attn_weights = (attn_weights.real + attn_weights.imag)
+            if self.minus_im:
+                attn_weights = (attn_weights.real - attn_weights.imag)
+            else:
+                attn_weights = (attn_weights.real + attn_weights.imag)
         
         if self.softmax:
             attn_weights = F.softmax(attn_weights, dim=-1)

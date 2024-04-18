@@ -44,6 +44,7 @@ class TransformerEncoder(nn.Module):
             softmax,
             rescale,
             squared_norm,
+            minus_im,
         ):
         super().__init__()
         self.dropout = 0.3      # Embedding dropout
@@ -57,6 +58,7 @@ class TransformerEncoder(nn.Module):
         self.pre_ln = pre_ln
         self.softmax = softmax
         self.squared_norm = squared_norm
+        self.minus_im = minus_im
         self.rescale = rescale
         self.layers = nn.ModuleList([])
         self.layers.extend([
@@ -190,6 +192,7 @@ class TransformerEncoderLayer(nn.Module):
             softmax=self.softmax,
             rescale=self.rescale,
             squared_norm=self.squared_norm,
+            minus_im=self.minus_im,
         ) if self.complex_mha else MultiheadAttention(
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,
