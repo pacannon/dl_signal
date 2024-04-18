@@ -1,3 +1,5 @@
+import glob
+import re
 import torch
 from torch import nn
 import os,sys,inspect
@@ -68,6 +70,12 @@ def train_transformer():
     optimizer = getattr(optim, args.optim)(model.parameters(), lr=args.lr, weight_decay=1e-7)
     criterion = nn.BCEWithLogitsLoss()
     scheduler = ReduceLROnPlateau(optimizer, mode='min', patience=2, factor=0.5)
+
+    if checkpoint is not None:
+        model.load_state_dict(checkpoint['model'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        scheduler.load_state_dict(checkpoint['scheduler'])
+
     settings = {'model': model,
                 'optimizer': optimizer,
                 'criterion': criterion,
@@ -91,9 +99,6 @@ class Trainer:
         self.training_step = 0
         self.epoch = 0
 
-        self.upload_interval = datetime.timedelta(seconds=10)
-        self.last_upload_time = datetime.datetime.min
-
     def train_model(self):
         settings = self.settings
 
@@ -101,7 +106,7 @@ class Trainer:
         rescale_part = f"-rescale_{args.rescale}" if args.rescale != 1 else ""
 
         run_name = f"complex_mha-pre_ln-softmax{squared_norm_part}{rescale_part}"
-        run_name = None
+        # run_name = None
 
         with mlflow.start_run(run_name=run_name, nested=nested_runs):
             run_start_time = time.time()
@@ -157,12 +162,6 @@ class Trainer:
                                 for moment in range(3):
                                     mlflow.log_metric(f"variance_{'re' if component == 0 else 'im'}_m{moment}", stats[layer][component][moment], step=layer)
                         print("Recorded encoder layer variance statistics.")
-
-
-                    current_time = datetime.datetime.utcnow()
-                    if current_time - self.last_upload_time >= self.upload_interval:
-                        mlflow.log_metric("train_loss", current_loss, step=self.training_step)
-                        self.last_upload_time = current_time
                 
                 eval_train_aps = multilabel_average_precision(pred_vals.view(-1, args.output_dim), true_vals.view(-1, args.output_dim).int(), args.output_dim, average="micro")
                 eval_train_loss = epoch_loss / len(training_set)
@@ -235,7 +234,7 @@ class Trainer:
             
             old_sys_stdout = sys.stdout
 
-            for epoch in range(args.num_epochs):
+            for epoch in range(starting_epoch, args.num_epochs):
                 self.epoch = epoch
 
                 if args.logging:
@@ -334,6 +333,8 @@ parser.add_argument('--complex_mha', action='store_true', dest='complex_mha',
                     help='use reformulated complex multiheaded attention')
 parser.add_argument('--conj_attn', action='store_true', dest='conj_attn',
                     help='use reformulated complex conjugate attention')
+parser.add_argument('--continue_from', type=str,
+                    help='specify a checkpoint to continue from')
 parser.add_argument('--data', type=str, default='music')
 parser.add_argument('--embed_dim', type=int, default=320,
                     help='dimension of real and imag embeddimg before transformer (default: 320)')
@@ -410,14 +411,45 @@ print("Finish loading the data....")
 train_loader = torch.utils.data.DataLoader(training_set, batch_size=args.batch_size, shuffle=True)
 validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=args.batch_size, shuffle=True)
 
+starting_epoch = 0
+run_id=None
 nested_runs = False
+checkpoint=None
+
+if args.continue_from:
+    checkpoint_pattern = f'./checkpoints_{args.continue_from}_E*.pth'
+    checkpoint_files = glob.glob(checkpoint_pattern)
+    if checkpoint_files:
+        
+        # Find the latest file by sorting based on the numeric value in the filename
+        checkpoint_files.sort(key=lambda x: int(re.findall("E(\d{4})\.pth", x)[0]))
+        latest_checkpoint = checkpoint_files[-1]
+        
+        # Extracting both unique ID and epoch number from the filename
+        match = re.search(r'checkpoints_([a-f0-9]+)_E(\d{4})\.pth', latest_checkpoint)
+        if match:
+            run_id = match.group(1)
+            epoch_number = int(match.group(2))
+            print(f"Found checkpoint for run_id={run_id} at epoch {epoch_number}")
+        else:
+            print("Error: Checkpoint filename format is incorrect.")
+            raise ValueError("Filename pattern does not match expected format.")
+
+        checkpoint = torch.load(latest_checkpoint, map_location=None) #torch.device('cpu'))
+
+        starting_epoch = epoch_number + 1
+        nested_runs=True
+        print(f"Resuming training from epoch {starting_epoch}")
+    else:
+        print(f"No checkpoint found for run_id={args.continue_from}. Cancelling Run.")
+        exit()
 
 if nested_runs:
-    with mlflow.start_run(run_id=None):
-        for squared_norm in [True]:
-            args.squared_norm = squared_norm
-            for rescale in [1, 2, 4]:
-                args.rescale = rescale
-                train_transformer()
+    with mlflow.start_run(run_id=run_id):
+        # for squared_norm in [True]:
+        #     args.squared_norm = squared_norm
+        #     for rescale in [1, 2, 4]:
+        #         args.rescale = rescale
+        train_transformer()
 else:
     train_transformer()
