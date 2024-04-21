@@ -27,6 +27,7 @@ class TransformerEncoder(nn.Module):
         softmax (bool): whether to use softmax in the attention scoring
         rescale (bool): whether to rescale the embeddings by an additional factor after applying softmax
         squared_norm (bool): whether to use squared norm on the real and imaginary parts during attention score softmax
+        re (bool): whether to use the real part of the complex number during attention score softmax
     """
 
     def __init__(
@@ -45,6 +46,7 @@ class TransformerEncoder(nn.Module):
             rescale,
             squared_norm,
             minus_im,
+            re,
         ):
         super().__init__()
         self.dropout = 0.3      # Embedding dropout
@@ -60,6 +62,7 @@ class TransformerEncoder(nn.Module):
         self.squared_norm = squared_norm
         self.minus_im = minus_im
         self.rescale = rescale
+        self.re = re
         self.layers = nn.ModuleList([])
         self.layers.extend([
             TransformerEncoderLayer(
@@ -76,6 +79,7 @@ class TransformerEncoder(nn.Module):
                 rescale=rescale,
                 squared_norm=squared_norm,
                 minus_im=minus_im,
+                re=re,
             )
             for _ in range(layers)
         ])
@@ -174,6 +178,7 @@ class TransformerEncoderLayer(nn.Module):
             rescale=1,
             squared_norm=True,
             minus_im=False,
+            re=False,
         ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -185,6 +190,7 @@ class TransformerEncoderLayer(nn.Module):
         self.rescale = rescale
         self.squared_norm = squared_norm
         self.minus_im = minus_im
+        self.re = re
         self.self_attn = CMultiheadAttention(
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,

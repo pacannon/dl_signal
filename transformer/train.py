@@ -61,6 +61,7 @@ def train_transformer():
         rescale=args.rescale,
         squared_norm=args.squared_norm,
         minus_im=args.minus_im,
+        re=args.re,
     )
     if use_cuda:
         model = model.cuda()
@@ -366,6 +367,8 @@ parser.add_argument('--path', type=str, default='music/',
                     help='path for storing the dataset')
 parser.add_argument('--pre_ln', action='store_true', dest='pre_ln',
                     help='position Layer Norms before attention and FF')
+parser.add_argument('--re', action='store_true', dest='re',
+                    help='use only the real part in the attention mechanism')
 parser.add_argument('--relu_dropout', type=float, default=0.1,
                     help='relu dropout')
 parser.add_argument('--res_dropout', type=float, default=0.1,
