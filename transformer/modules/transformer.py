@@ -202,6 +202,7 @@ class TransformerEncoderLayer(nn.Module):
             rescale=self.rescale,
             squared_norm=self.squared_norm,
             minus_im=self.minus_im,
+            re=self.re,
         ) if self.complex_mha else MultiheadAttention(
             embed_dim=self.embed_dim,
             num_heads=self.num_heads,
