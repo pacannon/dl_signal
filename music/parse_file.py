@@ -36,6 +36,7 @@ validation_data = ['2131', '2384', '1792', '2514', '2567', '1876']
 train_data = [ID for ID in data.files if ID not in (test_data + validation_data)]
 
 if args.cv_transformer:
+    stride_test = stride
     valid_split = 0.05
     test_split = 0.1
 
