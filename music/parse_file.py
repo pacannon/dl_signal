@@ -9,6 +9,15 @@
 import numpy as np                                       # fast vectors and matrices
 from scipy import fft                                    # fast fourier transform
 from intervaltree import Interval,IntervalTree
+import random
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--cv_transformer', action='store_true',
+    help='Use the train/valid/test split from the https://arxiv.org/pdf/2306.09827v1.pdf paper.')
+
+args = parser.parse_args()
+
 fs = 11000            # samples/second
 window_size = 4096    # fourier window size
 d = 2048              # number of features
@@ -21,15 +30,23 @@ data = np.load(open('musicnet_11khz.npz','rb'), encoding='latin1', allow_pickle=
 
 # split our dataset into train and test
 test_data = ['2303','2382','1819']
-train_data = [f for f in data.files if f not in test_data]
-
-
-
-test_data = ['2303', '2382', '1819']
 # Adding same validation data used by RSE
 # https://github.com/LUMII-Syslab/RSE/blob/master/musicnet_data/parse_file.py#L31
 validation_data = ['2131', '2384', '1792', '2514', '2567', '1876']
 train_data = [ID for ID in data.files if ID not in (test_data + validation_data)]
+
+if args.cv_transformer:
+    valid_split = 0.05
+    test_split = 0.1
+
+    valids = int(valid_split * len(data.files))
+    tests = int(test_split * len(data.files))
+
+    random.seed(42)
+    validation_data = random.sample(data.files, valids)
+    test_data = random.sample([x for x in list(data.files) if x not in validation_data], tests)
+
+    train_data = [i for i in data.files if i not in validation_data + test_data]
 
 index = 0
 # create the train set
