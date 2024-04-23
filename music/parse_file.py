@@ -15,6 +15,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--cv_transformer', action='store_true',
     help='Use the train/valid/test split from the https://arxiv.org/pdf/2306.09827v1.pdf paper.')
+parser.add_argument('--og', action='store_true',
+    help='Use just the train/test split from the original paper.')
 
 args = parser.parse_args()
 
@@ -48,6 +50,11 @@ if args.cv_transformer:
     test_data = random.sample([x for x in list(data.files) if x not in validation_data], tests)
 
     train_data = [i for i in data.files if i not in validation_data + test_data]
+
+if args.og:
+    test_data = ['2303','2382','1819']
+    validation_data = []
+    train_data = [ID for ID in data.files if ID not in (test_data + validation_data)]
 
 index = 0
 # create the train set
