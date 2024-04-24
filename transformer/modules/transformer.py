@@ -264,10 +264,10 @@ class TransformerEncoderLayer(nn.Module):
 
             if self.conj_attn:
                 x_A = x_aaa + x_abb - x_bab + x_bba
-                x_B = -x_bbb + x_baa + x_aba + x_aab
+                x_B = x_bbb + x_baa - x_aba + x_aab
             else:
                 x_A = x_aaa - x_abb - x_bab - x_bba
-                x_B = x_bbb + x_baa - x_aba + x_aab
+                x_B = -x_bbb + x_baa + x_aba + x_aab
          
         if not self.pre_ln:
             x_A = self.layer_norms_A[0](x_A)
