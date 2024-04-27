@@ -165,10 +165,10 @@ class Trainer:
                                     mlflow.log_metric(f"variance_{'re' if component == 0 else 'im'}_m{moment}", stats[layer][component][moment], step=layer)
                         print("Recorded encoder layer variance statistics.")
                 
-                    if args.og_aps:
-                        eval_train_aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
-                    else:
-                        eval_train_aps = multilabel_average_precision(pred_vals.view(-1, args.output_dim), true_vals.view(-1, args.output_dim).int(), args.output_dim, average="micro")
+                if args.og_aps:
+                    eval_train_aps = average_precision_score(true_vals.flatten(), pred_vals.flatten())
+                else:
+                    eval_train_aps = multilabel_average_precision(pred_vals.view(-1, args.output_dim), true_vals.view(-1, args.output_dim).int(), args.output_dim, average="micro")
 
                 eval_train_loss = epoch_loss / len(training_set)
 
